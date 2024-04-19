@@ -9,11 +9,11 @@ dependencies:
   - cmake
   - ipython
   - pybind11
-  - pytorch
+  - pytorch==2.2.1
   - pytorch-cuda=11.8
   - pytorch3d
-  - torchvision
-  - torchaudio
+  - torchvision==0.17.1
+  - torchaudio==2.2.1
   - pyg
   - ninja
   - pytorch-cluster
