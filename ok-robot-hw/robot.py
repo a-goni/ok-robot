@@ -34,11 +34,11 @@ class HelloRobot:
         self.GRIPPER_THRESHOLD = gripper_threshold
 
         print("hello robot starting")
-        self.head_joint_list = ["joint_fake", "joint_head_pan", "joint_head_tilt"]
-        self.init_joint_list = ["joint_fake","joint_lift","3","2","1" ,"0","joint_wrist_yaw","joint_wrist_pitch","joint_wrist_roll", "joint_gripper_finger_left"]
+        self.head_joint_list = ["joint_fake","joint_head_pan","joint_head_tilt"]
+        self.init_joint_list = ["joint_fake","joint_lift","3","2","1" ,"0","joint_wrist_yaw","joint_wrist_pitch","joint_wrist_roll","joint_gripper_finger_left"]
 
         # end_link is the frame of reference node 
-        self.end_link = end_link 
+        self.end_link = end_link
         self.set_end_link(end_link)
         
         # Initialize StretchClient controller (from home_robot/src/home_robot_hw/home_robot_hw/remote/api.py)
@@ -283,6 +283,7 @@ class HelloRobot:
         print('translation and rotation', translation_tensor, rotational_tensor)
         
         self.updateJoints()
+
         for joint_index in range(self.joint_array.rows()):
             self.joint_array[joint_index] = self.joints[self.joint_list[joint_index]]
 
@@ -305,7 +306,7 @@ class HelloRobot:
         ik_joints = {}
         for joint_index in range(self.joint_array.rows()):
             ik_joints[self.joint_list[joint_index]] = self.joint_array[joint_index]
-
+        
         # Actual Movement of joints
         self.move_to_joints(ik_joints, gripper, move_mode, velocities)
 

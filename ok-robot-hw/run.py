@@ -7,7 +7,7 @@ import PyKDL
 from PIL import Image
 
 from robot import HelloRobot
-from args import get_args
+from args import get_args, get_args2
 from camera import RealSenseCamera
 from utils.grasper_utils import pickup, move_to_point, capture_and_process_image
 from utils.communication_utils import send_array, recv_array
@@ -259,7 +259,8 @@ def compute_tilt(camera_xyz, target_xyz):
     return -np.arctan2(vector[2], np.linalg.norm(vector[:2]))
 
 def run():
-    args = get_args()
+    # args = get_args()
+    args = get_args2()
     load_offset(args.x1, args.y1, args.x2, args.y2)
     
     base_node = TOP_CAMERA_NODE
@@ -269,9 +270,11 @@ def run():
 
     context = zmq.Context()
     nav_socket = context.socket(zmq.REQ)
-    nav_socket.connect("tcp://" + args.ip + ":" + str(args.navigation_port))
+    # nav_socket.connect("tcp://" + args.ip + ":" + str(args.navigation_port))
+    nav_socket.connect("tcp://" + args.ipw + ":" + str(args.navigation_port))
     anygrasp_socket = context.socket(zmq.REQ)
-    anygrasp_socket.connect("tcp://" + args.ip + ":" + str(args.manipulation_port))
+    # anygrasp_socket.connect("tcp://" + args.ip + ":" + str(args.manipulation_port))
+    anygrasp_socket.connect("tcp://" + args.ipc + ":" + str(args.manipulation_port))
 
     while True:
         A = None
