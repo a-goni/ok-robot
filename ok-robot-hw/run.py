@@ -106,7 +106,7 @@ def run_navigation(robot, socket, A, B):
         - B: text query specifying an object close to target object that helps localization of A, set to None, if 
                 you just want the robot to localize A instead of "A near B"
     '''
-
+    
     # Compute start_xy of the robot
     start_xy = robot.nav.get_base_pose()
     print(start_xy)
@@ -131,7 +131,7 @@ def run_navigation(robot, socket, A, B):
     end_xyz = (n2r_matrix @ np.array([end_xyz[0], end_xyz[1], 1]))
     end_xyz[2] = z
 
-    if input("Start navigation? Y or N ") == 'N':
+    if input("Start navigation? Y or N: ") == 'N':
         return None
     
     # Let the robot run faster
@@ -163,6 +163,7 @@ def run_manipulation(hello_robot, socket, text, transform_node, base_node):
 
     gripper_pos = 1
 
+    
     hello_robot.move_to_position(arm_pos=INIT_ARM_POS,
                                 head_pan=INIT_HEAD_PAN,
                                 head_tilt=INIT_HEAD_TILT,
@@ -186,7 +187,7 @@ def run_manipulation(hello_robot, socket, text, transform_node, base_node):
     if rotation is None:
         return False
         
-    if input('Do you want to do this manipulation? Y or N ') != 'N':
+    if input('Do you want to do this manipulation? Y or N: ') != 'N':
         pickup(hello_robot, rotation, translation, base_node, transform_node, gripper_depth = depth)
     
     # Shift the base back to the original point as we are certain that orginal point is navigable in navigation obstacle map
@@ -278,10 +279,10 @@ def run():
 
     while True:
         A = None
-        if input("You want to run navigation? Y or N") != "N":
+        if input("You want to run navigation? Y or N: ") != "N":
             A, B = read_input()
-
             hello_robot.robot.switch_to_navigation_mode()
+            # error in nav posture
             hello_robot.robot.move_to_post_nav_posture()
             hello_robot.robot.head.look_front()
             end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
@@ -290,7 +291,7 @@ def run():
                 INIT_HEAD_TILT = compute_tilt(camera_xyz, end_xyz)
 
         print('debug coordinates', hello_robot.robot.nav.get_base_pose())
-        if input("You want to run manipulation? Y or N ") != 'N':
+        if input("You want to run manipulation? Y or N :") != 'N':
             if (A is None):
                 A, _ = read_input()
         
@@ -303,7 +304,7 @@ def run():
         # clear picking object
         A, B = None, None
         print('debug coordinates', hello_robot.robot.nav.get_base_pose())
-        if input("You want to run navigation? Y or N") != "N":
+        if input("You want to run navigation? Y or N: ") != "N":
             A, B = read_input()
 
             hello_robot.robot.switch_to_navigation_mode()
@@ -313,7 +314,7 @@ def run():
                 camera_xyz = hello_robot.robot.head.get_pose()[:3, 3]
                 INIT_HEAD_TILT = compute_tilt(camera_xyz, end_xyz)
 
-        if input("You want to run place? Y or N") != 'N':
+        if input("You want to run place? Y or N: ") != 'N':
             if (A is None):
                 A, _ = read_input()
             hello_robot.robot.switch_to_manipulation_mode()
