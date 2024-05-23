@@ -1,5 +1,5 @@
 import time
-
+import signal
 import zmq
 import cv2
 import numpy as np
@@ -11,7 +11,7 @@ from args import get_args, get_args2
 from camera import RealSenseCamera
 from utils.grasper_utils import pickup, move_to_point, capture_and_process_image
 from utils.communication_utils import send_array, recv_array
-from utils.asier_utils import get_yes_or_no, get_A_near_B_objects, get_A_object
+from utils.asier_utils import get_yes_or_no, get_A_near_B_objects, get_A_object, signal_handler
 
 from global_parameters import *
 
@@ -270,71 +270,63 @@ def run():
     load_offset(args.x1, args.y1, args.x2, args.y2)
     
     base_node = TOP_CAMERA_NODE
-
     transform_node = GRIPPER_MID_NODE
-    hello_robot = HelloRobot(end_link = transform_node)
+    hello_robot = HelloRobot(end_link=transform_node)
 
     context = zmq.Context()
     nav_socket = context.socket(zmq.REQ)
-    nav_socket.connect("tcp://" + args.ip + ":" + str(args.navigation_port))
+    nav_socket.connect("tcp://" + args.ipw + ":" + str(args.navigation_port))
     anygrasp_socket = context.socket(zmq.REQ)
-    anygrasp_socket.connect("tcp://" + args.ip + ":" + str(args.manipulation_port))
+    anygrasp_socket.connect("tcp://" + args.ipc + ":" + str(args.manipulation_port))
 
     while True:
-        A = None
-        # if input("You want to run navigation? Y or N") != "N":
-        #     A, B = read_input()
-        if get_yes_or_no("You want to run navigation? Y or N: ") != "N":
-            A, B = get_A_near_B_objects()
+        try:
+            A = None
+            if get_yes_or_no("You want to run navigation? Y or N: ") != "N":
+                A, B = get_A_near_B_objects()
 
-            hello_robot.robot.switch_to_navigation_mode()
-            hello_robot.robot.move_to_post_nav_posture()
-            hello_robot.robot.head.look_front()
-            end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
-            if not end_xyz is None:
-                camera_xyz = hello_robot.robot.head.get_pose()[:3, 3]
-                INIT_HEAD_TILT = compute_tilt(camera_xyz, end_xyz)
+                hello_robot.robot.switch_to_navigation_mode()
+                hello_robot.robot.move_to_post_nav_posture()
+                hello_robot.robot.head.look_front()
+                end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
+                if not end_xyz is None:
+                    camera_xyz = hello_robot.robot.head.get_pose()[:3, 3]
+                    INIT_HEAD_TILT = compute_tilt(camera_xyz, end_xyz)
 
-        print('debug coordinates', hello_robot.robot.nav.get_base_pose())
-        # if input("You want to run manipulation? Y or N: ") != 'N':
-        #     if (A is None):
-        #         A, _ = read_input()
-        if get_yes_or_no("You want to run manipulation? Y or N: ") != 'N':
-            if (A is None):
-                A = get_A_object()
+            if get_yes_or_no("You want to run manipulation? Y or N: ") != 'N':
+                if A is None:
+                    A = get_A_object()
 
-            hello_robot.robot.switch_to_manipulation_mode()
-            hello_robot.robot.head.look_at_ee()
-            perform_manip = run_manipulation(hello_robot, anygrasp_socket, A, transform_node, base_node)
-            if not perform_manip:
-                continue
+                hello_robot.robot.switch_to_manipulation_mode()
+                hello_robot.robot.head.look_at_ee()
+                perform_manip = run_manipulation(hello_robot, anygrasp_socket, A, transform_node, base_node)
+                if not perform_manip:
+                    continue
 
-        # clear picking object
-        A, B = None, None
-        print('debug coordinates', hello_robot.robot.nav.get_base_pose())
-        # if input("You want to run navigation? Y or N: ") != "N":
-        #     A, B = read_input()
-        if get_yes_or_no("You want to run navigation? Y or N: ") != "N":
-            A, B = get_A_near_B_objects()
+            # clear picking object
+            A, B = None, None
+            if get_yes_or_no("You want to run navigation? Y or N: ") != "N":
+                A, B = get_A_near_B_objects()
 
-            hello_robot.robot.switch_to_navigation_mode()
-            hello_robot.robot.head.look_front()
-            end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
-            if not end_xyz is None:
-                camera_xyz = hello_robot.robot.head.get_pose()[:3, 3]
-                INIT_HEAD_TILT = compute_tilt(camera_xyz, end_xyz)
+                hello_robot.robot.switch_to_navigation_mode()
+                hello_robot.robot.head.look_front()
+                end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
+                if not end_xyz is None:
+                    camera_xyz = hello_robot.robot.head.get_pose()[:3, 3]
+                    INIT_HEAD_TILT = compute_tilt(camera_xyz, end_xyz)
 
-        # if input("You want to run place? Y or N") != 'N':
-        #     if (A is None):
-        #         A, _ = read_input()
-        if get_yes_or_no("You want to run place? Y or N: ") != 'N':
-            if (A is None):
-                A = get_A_object()
+            if get_yes_or_no("You want to run place? Y or N: ") != 'N':
+                if A is None:
+                    A = get_A_object()
 
-            hello_robot.robot.switch_to_manipulation_mode()
-            hello_robot.robot.head.look_at_ee()
-            run_place(hello_robot, anygrasp_socket, A, transform_node, base_node)
-        time.sleep(1)
+                hello_robot.robot.switch_to_manipulation_mode()
+                hello_robot.robot.head.look_at_ee()
+                run_place(hello_robot, anygrasp_socket, A, transform_node, base_node)
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nKeyboard interrupt received. Exiting.")
+            break
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
     run()
