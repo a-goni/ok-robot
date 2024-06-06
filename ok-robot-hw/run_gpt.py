@@ -5,9 +5,10 @@ import signal
 import zmq
 import base64
 import json
+import matplotlib.pyplot as plt
 from openai import OpenAI
 from camera import RealSenseCamera
-from utils.navigation_utils import run_navigation
+from utils.navigation_utils import run_navigation, load_offset
 from utils.manipulation_utils import run_manipulation, run_place
 from utils.asier_utils import signal_handler
 from robot import HelloRobot
@@ -21,6 +22,17 @@ GPT_MODEL = "gpt-4o"
 # Function to capture an image and encode it to base64
 def capture_and_encode_image(camera):
     rgb_image, _, _ = camera.capture_image()
+
+    # Rotate the image 90 degrees to the right
+    rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
+    
+    # Display the captured image
+    plt.figure(figsize=(10, 10))
+    plt.imshow(rgb_image)
+    plt.title("Captured Image")
+    plt.axis('off')
+    plt.show()
+    
     _, buffer = cv2.imencode('.jpg', rgb_image)
     encoded_image = base64.b64encode(buffer).decode('utf-8')
     return encoded_image
@@ -77,7 +89,7 @@ def get_gpt_actions(encoded_image):
     messages = [
         {
             "role": "system",
-            "content": "You are an assistive cleaning robot. You have a mobile base and robotic arm, which allows you to navigate, pick up objects, and place objects. Given the image, decide what the next best steps are to clean the area."
+            "content": "You are an assistive cleaning robot. You have a mobile base and robotic arm, which allows you to navigate, pick up objects, and place objects. Given the image, and the tools, decide what the next best steps are to clean the area."
         },
         {
             "role": "user",
@@ -88,14 +100,34 @@ def get_gpt_actions(encoded_image):
         model=GPT_MODEL,
         messages=messages,
         tools=tools,
-        tool_choice={"type": "function"}
+        max_tokens=200
     )
+
+    # Print the assistant's message content to the console
+    print("GPT Response:", response)
+    if hasattr(response, "choices") and response.choices:
+        for choice in response.choices:
+            if "message" in choice:
+                print("GPT Suggested Actions:", choice.message.get("content", "No content in the response"))
+                if hasattr(choice.message, "tool_calls") and choice.message.tool_calls:
+                    print("Tool Calls:")
+                    for tool_call in choice.message.tool_calls:
+                        print(f"Function Name: {tool_call.function.name}")
+                        print(f"Arguments: {tool_call.function.arguments}")
+            else:
+                print("No message found in choice")
+    else:
+        print("No choices found in the response")
+    
     return response
 
+
+# Example usage within the run function
 def run():
     args = get_args2()
-    hello_robot = HelloRobot()
-    camera = RealSenseCamera(hello_robot)
+    load_offset(args.x1, args.y1, args.x2, args.y2)
+    hello_robot = HelloRobot(end_link=GRIPPER_MID_NODE)
+    camera = RealSenseCamera(hello_robot.robot)
 
     context = zmq.Context()
     nav_socket = context.socket(zmq.REQ)
@@ -109,17 +141,20 @@ def run():
             gpt_response = get_gpt_actions(encoded_image)
             
             for choice in gpt_response.choices:
-                if "tool_calls" in choice.message:
+                if hasattr(choice.message, "tool_calls") and choice.message.tool_calls:
                     for tool_call in choice.message.tool_calls:
                         function_name = tool_call.function.name
                         arguments = json.loads(tool_call.function.arguments)
-
+                        print("Function: ", function_name)
+                        print("Arguments: ", arguments)
                         if function_name == "run_navigation":
-                            run_navigation(hello_robot.robot, nav_socket, arguments["A"], arguments.get("B"))
+                            run_navigation(hello_robot.robot, nav_socket, arguments["A"], arguments.get("B", ""))
                         elif function_name == "run_manipulation":
                             run_manipulation(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
                         elif function_name == "run_place":
                             run_place(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
+                else:
+                    print("No tool calls found in the response")
 
             time.sleep(1)
         except KeyboardInterrupt:
