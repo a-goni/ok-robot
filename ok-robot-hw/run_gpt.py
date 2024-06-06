@@ -1,77 +1,126 @@
+import os
+import cv2
 import time
 import signal
 import zmq
-
+import base64
+import json
+from openai import OpenAI
+from camera import RealSenseCamera
+from utils.navigation_utils import run_navigation
+from utils.manipulation_utils import run_manipulation, run_place
+from utils.asier_utils import signal_handler
 from robot import HelloRobot
 from args import get_args2
-from utils.asier_utils import get_yes_or_no, get_A_near_B_objects, get_A_object, signal_handler
 from global_parameters import *
 
-from utils.navigation_utils import load_offset, run_navigation
-from utils.manipulation_utils import run_manipulation, run_place
+# OpenAI API setup
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+GPT_MODEL = "gpt-4o"
+
+# Function to capture an image and encode it to base64
+def capture_and_encode_image(camera):
+    rgb_image, _, _ = camera.capture_image()
+    _, buffer = cv2.imencode('.jpg', rgb_image)
+    encoded_image = base64.b64encode(buffer).decode('utf-8')
+    return encoded_image
+
+# Define tools for GPT
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "run_navigation",
+            "description": "Navigate the robot to the specified location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "A": {"type": "string", "description": "Target object to navigate to"},
+                    "B": {"type": "string", "description": "Reference object to help localization"}
+                },
+                "required": ["A"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_manipulation",
+            "description": "Manipulate the robot to pick up specified objects",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Object to manipulate"}
+                },
+                "required": ["text"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_place",
+            "description": "Place the object held by the robot at the specified location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Target place to put the object"}
+                },
+                "required": ["text"]
+            }
+        }
+    }
+]
+
+# Function to send image to GPT and get actions
+def get_gpt_actions(encoded_image):
+    messages = [
+        {
+            "role": "system",
+            "content": "You are an assistive cleaning robot. You have a mobile base and robotic arm, which allows you to navigate, pick up objects, and place objects. Given the image, decide what the next best steps are to clean the area."
+        },
+        {
+            "role": "user",
+            "content": f"data:image/jpeg;base64,{encoded_image}"
+        }
+    ]
+    response = client.chat.completions.create(
+        model=GPT_MODEL,
+        messages=messages,
+        tools=tools,
+        tool_choice={"type": "function"}
+    )
+    return response
 
 def run():
     args = get_args2()
-    load_offset(args.x1, args.y1, args.x2, args.y2)
-    base_node = TOP_CAMERA_NODE
-    transform_node = GRIPPER_MID_NODE
-    hello_robot = HelloRobot(end_link=transform_node)
+    hello_robot = HelloRobot()
+    camera = RealSenseCamera(hello_robot)
+
     context = zmq.Context()
     nav_socket = context.socket(zmq.REQ)
     nav_socket.connect("tcp://" + args.ipw + ":" + str(args.navigation_port))
     anygrasp_socket = context.socket(zmq.REQ)
     anygrasp_socket.connect("tcp://" + args.ipc + ":" + str(args.manipulation_port))
+
     while True:
         try:
-            A = None
-            if get_yes_or_no("You want to run navigation? Y or N: ") != "N":
-                while True:
-                    A, B = get_A_near_B_objects()
-                    hello_robot.robot.switch_to_navigation_mode()
-                    hello_robot.robot.move_to_post_nav_posture()
-                    hello_robot.robot.head.look_front()
-                    end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
-                    if end_xyz is not None:
-                        break
-                    else:
-                        if get_yes_or_no("Would you like to retry the prompt? Y or N: ") == 'N':
-                            break
-            if get_yes_or_no("You want to run manipulation? Y or N: ") != 'N':
-                while True:
-                    if A is None:
-                        A = get_A_object()
-                    hello_robot.robot.switch_to_manipulation_mode()
-                    hello_robot.robot.head.look_at_ee()
-                    perform_manip = run_manipulation(hello_robot, anygrasp_socket, A, transform_node, base_node)
-                    if perform_manip:
-                        break
-                    else:
-                        if get_yes_or_no("Would you like to retry the prompt? Y or N: ") == 'N':
-                            break
-            A, B = None, None
-            if get_yes_or_no("You want to run navigation? Y or N: ") != "N":
-                while True:
-                    A, B = get_A_near_B_objects()
-                    hello_robot.robot.switch_to_navigation_mode()
-                    hello_robot.robot.head.look_front()
-                    end_xyz = run_navigation(hello_robot.robot, nav_socket, A, B)
-                    if end_xyz is not None:
-                        break
-                    else:
-                        if get_yes_or_no("Would you like to retry the prompt? Y or N: ") == 'N':
-                            break
-            if get_yes_or_no("You want to run place? Y or N: ") != 'N':
-                while True:
-                    if A is None:
-                        A = get_A_object()
-                    hello_robot.robot.switch_to_manipulation_mode()
-                    hello_robot.robot.head.look_at_ee()
-                    run_place(hello_robot, anygrasp_socket, A, transform_node, base_node)
-                    if perform_manip:
-                        break
-                    else:
-                        if get_yes_or_no("Would you like to retry the prompt? Y or N: ") == 'N':
-                            break
+            encoded_image = capture_and_encode_image(camera)
+            gpt_response = get_gpt_actions(encoded_image)
+            
+            for choice in gpt_response.choices:
+                if "tool_calls" in choice.message:
+                    for tool_call in choice.message.tool_calls:
+                        function_name = tool_call.function.name
+                        arguments = json.loads(tool_call.function.arguments)
+
+                        if function_name == "run_navigation":
+                            run_navigation(hello_robot.robot, nav_socket, arguments["A"], arguments.get("B"))
+                        elif function_name == "run_manipulation":
+                            run_manipulation(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
+                        elif function_name == "run_place":
+                            run_place(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
+
             time.sleep(1)
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received. Exiting.")
