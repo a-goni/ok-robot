@@ -1,6 +1,6 @@
 import numpy as np
-from communication_utils import send_array, recv_array
-from asier_utils import get_yes_or_no
+from utils.communication_utils import send_array, recv_array
+from utils.asier_utils import get_yes_or_no
 from global_parameters import *
 
 X_OFFSET, Y_OFFSET, THETA_OFFSET, r2n_matrix, n2r_matrix = None, None, None, None, None

@@ -1,6 +1,6 @@
 import time
-from grasper_utils import pickup, move_to_point, capture_and_process_image
-from communication_utils import get_yes_or_no
+from utils.grasper_utils import pickup, move_to_point, capture_and_process_image
+from utils.asier_utils import get_yes_or_no
 from camera import RealSenseCamera
 from global_parameters import *
 
