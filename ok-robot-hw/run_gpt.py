@@ -47,10 +47,10 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "A": {"type": "string", "description": "Target object to navigate to"},
-                    "B": {"type": "string", "description": "Reference object to help localization"}
+                    "text_A": {"type": "string", "description": "Target object to navigate to"},
+                    "text_B": {"type": "string", "description": "Reference object to help localisation"}
                 },
-                "required": ["A"]
+                "required": ["text_A"]
             }
         }
     },
@@ -58,11 +58,11 @@ tools = [
         "type": "function",
         "function": {
             "name": "run_manipulation",
-            "description": "Manipulate the robot to pick up specified objects",
+            "description": "Manipulate the robot to pick up a specified object",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "text": {"type": "string", "description": "Object to manipulate"}
+                    "text": {"type": "string", "description": "Object to pick-up (manipulate)"}
                 },
                 "required": ["text"]
             }
@@ -160,7 +160,7 @@ def run():
                         print("Function: ", function_name)
                         print("Arguments: ", arguments)
                         if function_name == "run_navigation":
-                            run_navigation_gpt(hello_robot.robot, nav_socket, arguments["A"], arguments.get("B"))
+                            run_navigation_gpt(hello_robot.robot, nav_socket, arguments["text_A"], arguments.get("text_B"))
                         elif function_name == "run_manipulation":
                             run_manipulation_gpt(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
                         elif function_name == "run_place":
