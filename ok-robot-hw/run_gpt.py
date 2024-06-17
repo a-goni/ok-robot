@@ -136,7 +136,7 @@ def get_gpt_actions(encoded_image):
     return response
 
 def run():
-    args = get_args2()
+    args = get_args2() 
     load_offset(args.x1, args.y1, args.x2, args.y2)
     hello_robot = HelloRobot(end_link=GRIPPER_MID_NODE)
     camera = RealSenseCamera(hello_robot.robot)
