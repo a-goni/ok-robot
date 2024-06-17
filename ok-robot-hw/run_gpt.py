@@ -47,8 +47,8 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "text_A": {"type": "string", "description": "Target object to navigate to"},
-                    "text_B": {"type": "string", "description": "Reference object to help localisation"}
+                    "text_A": {"type": "string", "description": "Target object to navigate to. This must be an object in the scene."},
+                    "text_B": {"type": "string", "description": "Reference object to help localisation. Another object in the scene."}
                 },
                 "required": ["text_A"]
             }
@@ -89,25 +89,29 @@ def get_gpt_actions(encoded_image):
     messages = [
         {
             "role": "system",
-            "content": 
+            "content":
             """
-            You are a mobile service robot in a home environment. Your task is to look after the apartment and keep it clean and tidy.
-            You have a mobile base, robotic arm and a camera. Your available actions are run_navigation, run_manipulation, and run_place.
-            You will receive an image input and should generate a plan with the actions run_navigation, run_manipulation, and run_place.
-            
-            You should provide a short text response in the following format:
-            ### PLAN
-            run_navigation(A, B)
-            run_manipulation(text)
-            run_place(text)
-            ### END
-
-            If you are unsure what to do, navigate to a new area, take a new picture and generate a new plan.
+            I am a mobile service robot in a home environment. My task is to look after the apartment and keep it clean and tidy.
+            I have a mobile base, robotic arm and a camera. My available actions are run_navigation, run_manipulation, and run_place.
+            I will receive an image input, and from this, I will respond with a function_call or tool_call utilising the provided tools, run_navigation, run_manipulation, and run_place. 
+            I will be specific about the object from what I see in the image scene.
+            The user cannot be spoken to.
             """
         },
         {
             "role": "user",
-            "content": f"data:image/jpeg;base64,{encoded_image}"
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Initial image taken on wake up."
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{encoded_image}"
+                    }
+                }
+            ]
         }
     ]
     response = client.chat.completions.create(
