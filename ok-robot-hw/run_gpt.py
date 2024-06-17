@@ -7,8 +7,8 @@ import base64
 import json
 from openai import OpenAI
 from camera import RealSenseCamera
-from utils.navigation_utils import run_navigation
-from utils.manipulation_utils import run_manipulation, run_place
+from utils.navigation_utils import run_navigation_gpt
+from utils.manipulation_utils import run_manipulation_gpt, run_place_gpt
 from utils.asier_utils import signal_handler
 from robot import HelloRobot
 from args import get_args2
@@ -115,11 +115,11 @@ def run():
                         arguments = json.loads(tool_call.function.arguments)
 
                         if function_name == "run_navigation":
-                            run_navigation(hello_robot.robot, nav_socket, arguments["A"], arguments.get("B"))
+                            run_navigation_gpt(hello_robot.robot, nav_socket, arguments["A"], arguments.get("B"))
                         elif function_name == "run_manipulation":
-                            run_manipulation(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
+                            run_manipulation_gpt(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
                         elif function_name == "run_place":
-                            run_place(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
+                            run_place_gpt(hello_robot, anygrasp_socket, arguments["text"], TOP_CAMERA_NODE, GRIPPER_MID_NODE)
 
             time.sleep(1)
         except KeyboardInterrupt:
