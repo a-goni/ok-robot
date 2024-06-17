@@ -210,4 +210,6 @@ CLASS_LABELS_200 =(
     'machine',
     'projector screen',
     'shoe',
+    # Added classes
+    # 'lego block'
 )
