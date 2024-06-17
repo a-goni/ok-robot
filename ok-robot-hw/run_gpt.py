@@ -89,7 +89,21 @@ def get_gpt_actions(encoded_image):
     messages = [
         {
             "role": "system",
-            "content": "You are an assistive cleaning robot. You have a mobile base and robotic arm, which allows you to navigate, pick up objects, and place objects. Given the image, and the tools, decide what the next best steps are to clean the area."
+            "content": 
+            """
+            You are a mobile service robot in a home environment. Your task is to look after the apartment and keep it clean and tidy.
+            You have a mobile base, robotic arm and a camera. Your available actions are run_navigation, run_manipulation, and run_place.
+            You will receive an image input and should generate a plan with the actions run_navigation, run_manipulation, and run_place.
+            
+            You should provide a short text response in the following format:
+            ### PLAN
+            run_navigation(A, B)
+            run_manipulation(text)
+            run_place(text)
+            ### END
+
+            If you are unsure what to do, navigate to a new area, take a new picture and generate a new plan.
+            """
         },
         {
             "role": "user",
@@ -121,8 +135,6 @@ def get_gpt_actions(encoded_image):
     
     return response
 
-
-# Example usage within the run function
 def run():
     args = get_args2()
     load_offset(args.x1, args.y1, args.x2, args.y2)
