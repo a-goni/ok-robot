@@ -63,6 +63,8 @@ def run_place(hello_robot, socket, text, transform_node, base_node):
     return True
 
 def run_manipulation_gpt(hello_robot, socket, text, transform_node, base_node):
+    hello_robot.robot.switch_to_manipulation_mode()
+    hello_robot.robot.head.look_at_ee()
     gripper_pos = 1
     hello_robot.move_to_position(arm_pos=INIT_ARM_POS,
                                  head_pan=INIT_HEAD_PAN,
@@ -89,6 +91,9 @@ def run_manipulation_gpt(hello_robot, socket, text, transform_node, base_node):
     return True
 
 def run_place_gpt(hello_robot, socket, text, transform_node, base_node):
+    hello_robot.robot.switch_to_manipulation_mode()
+    hello_robot.robot.head.look_at_ee()
+
     camera = RealSenseCamera(hello_robot.robot)
     time.sleep(2)
     rotation, translation, _ = capture_and_process_image(

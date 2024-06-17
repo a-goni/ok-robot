@@ -86,6 +86,9 @@ def run_navigation(robot, socket, A, B):
     return end_xyz
 
 def run_navigation_gpt(robot, socket, A, B):
+    robot.switch_to_navigation_mode()
+    robot.move_to_post_nav_posture() # check if this is needed
+    robot.head.look_front()
     start_xy = robot.nav.get_base_pose()
     print(start_xy)
     transformed_start_xy = r2n_matrix @ np.array([start_xy[0], start_xy[1], 1])
