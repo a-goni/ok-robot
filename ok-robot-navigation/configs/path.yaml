@@ -54,12 +54,13 @@ web_models:
   sam: "vit_b"
 
 # Add any custom labels you want here
-#custom_labels:
-#  - muffins
-#  - hat
-#  - pepper
+custom_labels:
+ - table cloth
+ - rubix cube
+ - saucepan
+ - frying pan
 
-# Or just comment it out for default labels.
-custom_labels: null
+# # Or just comment it out for default labels.
+# custom_labels: null
 
 
