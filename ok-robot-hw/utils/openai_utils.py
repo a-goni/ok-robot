@@ -49,17 +49,18 @@ tools = [
         "type": "function",
         "function": {
             "name": "navigate_to",
-            "description": "Navigates the robot to a specified position and orientation.",
+            "description": "Navigates the robot to a relative position and orientation.",
+            "parallel_tool_calls": "false",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "x": {"type": "number", "description": "The x coordinate in meters. Positive is forward.", "min": "0", "max":"1"},
-                    "y": {"type": "number", "description": "The y coordinate in meters. Positive is left", "min": "0", "max":"1"},
-                    "theta": {"type": "number", "description": "The orientation angle in radians. Positive is counterclockwise", "min": "0", "max":"0.78"}
+                    "x": {"type": "number", "description": "The x coordinate in meters. Positive is forward."},
+                    "y": {"type": "number", "description": "The y coordinate in meters. Positive is left"},
+                    "theta": {"type": "number", "description": "The orientation angle in radians. Positive is counterclockwise"}
                 },
                 "required": ["x", "y", "theta"]
             },
-            "parallel_tool_calls": "false"
+            
         }
     },
 ]
@@ -81,8 +82,7 @@ def chat_completion_request(messages, client, model="gpt-4o", tools=tools, tool_
         return e
 
 def perform_action(hello_robot, response):
-    response_message = response.choices[0].message
-    tool_calls = response_message.tool_calls
+    tool_calls = response.choices[0].message.tool_calls
 
     if tool_calls:
         print("Tool call detected.")
@@ -100,6 +100,10 @@ def perform_action(hello_robot, response):
         print("No tool call.")
 
 def navigate_to(robot, xyt_goal):
-    print(f"Navigating robot to position: x={xyt_goal[0]}, y={xyt_goal[1]}, theta={xyt_goal[2]}")
+    print(f"Navigating robot to relative position: x={xyt_goal[0]}, y={xyt_goal[1]}, theta={xyt_goal[2]}")
     robot.robot.nav.navigate_to(xyt_goal, relative=True)
 
+# function not used atm.
+def stop():
+    print("Stopping.")
+    exit

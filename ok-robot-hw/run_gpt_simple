@@ -1,7 +1,7 @@
 import os
 import signal
 from utils.asier_utils import signal_handler
-from utils.openai_utils import capture_and_encode_image, chat_completion_request, perform_action
+from utils.openai_utils import capture_and_encode_image, chat_completion_request, perform_action, pretty_print_conversation
 from openai import OpenAI
 from robot import HelloRobot
 from camera import RealSenseCamera
@@ -20,10 +20,11 @@ def run():
         "role": "system",
         "content":
         """
-        You are an autonomous robot in a lab environment. Your task is to continuously explore the environment, avoiding obstacles.
-        You have a mobile base, robotic arm and a camera. Keep your movements within 1m x and y, and to less than 0.78 radians. You can turn on the spot to avoid collision if needed.
-        For your response, succinctly describe what you want to do and then use one of the function calls. Only do one function call at a time.
-        You have access to the following tools:
+        You are an autonomous robot in a lab environment with a mobile base and a camera.        
+        Your task is to explore the environment, avoiding obstacles, to find the kitchen.
+        Succinctly describe what you want to do and use the provided functions to navigate the area.
+        Do not execute movements in parallel. All movements in one action.
+        You must use the function:
             - navigate_to()
         """
     })
@@ -45,14 +46,14 @@ def run():
                     }
                 ]})
             response = chat_completion_request(messages=messages, client=client, model=GPT_MODEL)
-            print(response)
             # messages.append(response.choices[0].message)
+            print(response)
+            # pretty_print_conversation(messages)
             perform_action(hello_robot, response)
 
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received. Exiting.")
             break
-
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
