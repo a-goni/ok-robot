@@ -1,16 +1,13 @@
 import os
-import cv2
 import time
 import signal
 import zmq
-import base64
 import json
-import matplotlib.pyplot as plt
 from openai import OpenAI
 from camera import RealSenseCamera
 from utils.navigation_utils import run_navigation_gpt, load_offset
 from utils.manipulation_utils import run_manipulation_gpt, run_place_gpt
-from utils.asier_utils import signal_handler
+from utils.asier_utils import signal_handler, capture_and_encode_image
 from robot import HelloRobot
 from args import get_args2
 from global_parameters import *
@@ -18,24 +15,6 @@ from global_parameters import *
 # OpenAI API setup
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 GPT_MODEL = "gpt-4o"
-
-# Function to capture an image and encode it to base64
-def capture_and_encode_image(camera):
-    rgb_image, _, _ = camera.capture_image()
-
-    # Rotate the image 90 degrees to the right
-    rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
-    
-    # Display the captured image
-    plt.figure(figsize=(10, 10))
-    plt.imshow(rgb_image)
-    plt.title("Captured Image")
-    plt.axis('off')
-    plt.show()
-    
-    _, buffer = cv2.imencode('.jpg', rgb_image)
-    encoded_image = base64.b64encode(buffer).decode('utf-8')
-    return encoded_image
 
 # Define tools for GPT
 tools = [
