@@ -1,7 +1,18 @@
 import sys
-import cv2
-import base64
-import matplotlib.pyplot as plt
+
+import numpy as np
+
+
+def compute_tilt(camera_xyz, target_xyz):
+    vector = camera_xyz - target_xyz
+    return -np.arctan2(vector[2], np.linalg.norm(vector[:2]))
+
+def read_input():
+    A = str(input("Enter A: "))
+    print("A = ", A)
+    B = str(input("Enter B: "))
+    print("B = ", B)
+    return A, B
 
 def get_A_near_B_objects():
     """
@@ -37,21 +48,3 @@ def get_yes_or_no(prompt):
 def signal_handler(sig, frame):
     print("\nKeyboard interrupt received. Exiting.")
     sys.exit(0)
-
-# Function to capture an image and encode it to base64
-def capture_and_encode_image(camera):
-    rgb_image, _, _ = camera.capture_image()
-
-    # Rotate the image 90 degrees to the right
-    rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
-    
-    # Display the captured image
-    plt.figure(figsize=(10, 10))
-    plt.imshow(rgb_image)
-    plt.title("Captured Image")
-    plt.axis('off')
-    plt.show()
-    
-    _, buffer = cv2.imencode('.jpg', rgb_image)
-    encoded_image = base64.b64encode(buffer).decode('utf-8')
-    return encoded_image

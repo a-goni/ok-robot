@@ -1,12 +1,10 @@
 import time
 import signal
 import zmq
-
 from robot import HelloRobot
 from args import get_args2
 from utils.asier_utils import get_yes_or_no, get_A_near_B_objects, get_A_object, signal_handler
 from global_parameters import *
-
 from utils.navigation_utils import load_offset, run_navigation
 from utils.manipulation_utils import run_manipulation, run_place
 

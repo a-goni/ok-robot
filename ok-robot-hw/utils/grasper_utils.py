@@ -1,7 +1,6 @@
 import PyKDL
 import time
 import math
-
 from image_publisher import ImagePublisher
 from global_parameters import *
 
