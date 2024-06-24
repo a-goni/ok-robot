@@ -43,7 +43,30 @@ def pretty_print_conversation(messages):
         elif message["role"] == "function":
             print(colored(f"function ({message['name']}): {message['content']}\n", role_to_color[message["role"]]))
 
-# Define the navigate_to tool
+def pretty_print_conversation2(messages):
+    role_to_color = {
+        "system": "red",
+        "user": "green",
+        "assistant": "blue",
+        "tool": "magenta",
+    }
+    
+    for message in messages:
+        if message["role"] == "system":
+            print(colored(f"System: {message['content']}\n", role_to_color[message["role"]]))
+        elif message["role"] == "user":
+            for content in message["content"]:
+                if content["type"] == "text":
+                    print(colored(f"User: {content['text']}\n", role_to_color[message["role"]]))
+                elif content["type"] == "image_url":
+                    print(colored(f"User: [Image not displayed]\n", role_to_color[message["role"]]))
+        elif message["role"] == "assistant":
+            for content in message["content"]:
+                if content["type"] == "text":
+                    print(colored(f"Assistant: {content['text']}\n", role_to_color[message["role"]]))
+        elif message["role"] == "tool":
+            print(colored(f"Tool:\nFunciton name: {message['name']}\ncontent: {message['content']}\n", role_to_color[message["role"]])) # removed "\nArguments: {message['arguments']}" as not type string
+
 tools = [
     {
         "type": "function",
@@ -81,7 +104,7 @@ def chat_completion_request(messages, client, model="gpt-4o", tools=tools, tool_
         print(f"Exception: {e}")
         return e
 
-def perform_action(hello_robot, response):
+def perform_action(hello_robot, response, messages):
     tool_calls = response.choices[0].message.tool_calls
 
     if tool_calls:
@@ -96,9 +119,18 @@ def perform_action(hello_robot, response):
                 function_args = json.loads(tool_call.function.arguments)
                 xyt_goal = [function_args["x"], function_args["y"], function_args["theta"]]
                 function(hello_robot, xyt_goal)
-                
+                new_message = [{
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": "Performed action.",
+                    }]
+                # pretty_print_conversation2(new_message)
+                messages.append(new_message[0])
+        return messages
     else:
         print("No tool call.")
+        return messages
 
 def navigate_to(robot, xyt_goal):
     print(f"Navigating robot to relative position: x={xyt_goal[0]}, y={xyt_goal[1]}, theta={xyt_goal[2]}")
