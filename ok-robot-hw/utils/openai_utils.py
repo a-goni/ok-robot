@@ -96,6 +96,7 @@ def perform_action(hello_robot, response):
                 function_args = json.loads(tool_call.function.arguments)
                 xyt_goal = [function_args["x"], function_args["y"], function_args["theta"]]
                 function(hello_robot, xyt_goal)
+                
     else:
         print("No tool call.")
 
