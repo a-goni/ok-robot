@@ -2,11 +2,11 @@ import cv2
 import base64
 import json
 import matplotlib.pyplot as plt
-from termcolor import colored
 from tenacity import retry, wait_random_exponential, stop_after_attempt
+from utils.messages_utils import add_response_message, add_image_message, add_tool_message
 
 # Function to capture an image and encode it to base64
-def capture_and_encode_image(camera):
+def capture_and_encode_image(camera, messages, display_seconds=1):
     rgb_image, _, _ = camera.capture_image()
 
     # Rotate the image 90 degrees to the right
@@ -18,54 +18,14 @@ def capture_and_encode_image(camera):
     plt.title("Captured Image")
     plt.axis('off')
     plt.show()
-    
+    plt.pause(display_seconds)
+    plt.close()
+
     _, buffer = cv2.imencode('.jpg', rgb_image)
     encoded_image = base64.b64encode(buffer).decode('utf-8')
-    return encoded_image
+    messages = add_image_message(encoded_image, messages)
+    return messages
 
-def pretty_print_conversation(messages):
-    role_to_color = {
-        "system": "red",
-        "user": "green",
-        "assistant": "blue",
-        "function": "magenta",
-    }
-    
-    for message in messages:
-        if message["role"] == "system":
-            print(colored(f"system: {message['content']}\n", role_to_color[message["role"]]))
-        elif message["role"] == "user":
-            print(colored(f"user: {message['content']}\n", role_to_color[message["role"]]))
-        elif message["role"] == "assistant" and message.get("function_call"):
-            print(colored(f"assistant: {message['function_call']}\n", role_to_color[message["role"]]))
-        elif message["role"] == "assistant" and not message.get("function_call"):
-            print(colored(f"assistant: {message['content']}\n", role_to_color[message["role"]]))
-        elif message["role"] == "function":
-            print(colored(f"function ({message['name']}): {message['content']}\n", role_to_color[message["role"]]))
-
-def pretty_print_conversation2(messages):
-    role_to_color = {
-        "system": "red",
-        "user": "green",
-        "assistant": "blue",
-        "tool": "magenta",
-    }
-    
-    for message in messages:
-        if message["role"] == "system":
-            print(colored(f"System: {message['content']}\n", role_to_color[message["role"]]))
-        elif message["role"] == "user":
-            for content in message["content"]:
-                if content["type"] == "text":
-                    print(colored(f"User: {content['text']}\n", role_to_color[message["role"]]))
-                elif content["type"] == "image_url":
-                    print(colored(f"User: [Image not displayed]\n", role_to_color[message["role"]]))
-        elif message["role"] == "assistant":
-            for content in message["content"]:
-                if content["type"] == "text":
-                    print(colored(f"Assistant: {content['text']}\n", role_to_color[message["role"]]))
-        elif message["role"] == "tool":
-            print(colored(f"Tool:\nFunciton name: {message['name']}\ncontent: {message['content']}\n", role_to_color[message["role"]])) # removed "\nArguments: {message['arguments']}" as not type string
 
 tools = [
     {
@@ -73,7 +33,7 @@ tools = [
         "function": {
             "name": "navigate_to",
             "description": "Navigates the robot to a relative position and orientation.",
-            "parallel_tool_calls": "false",
+            # "parallel_tool_calls": "false",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -98,7 +58,8 @@ def chat_completion_request(messages, client, model="gpt-4o", tools=tools, tool_
             tool_choice=tool_choice,
             
         )
-        return response
+        messages = add_response_message(response=response, messages=messages)
+        return response, messages
     except Exception as e:
         print("Unable to generate ChatCompletion response")
         print(f"Exception: {e}")
@@ -119,14 +80,7 @@ def perform_action(hello_robot, response, messages):
                 function_args = json.loads(tool_call.function.arguments)
                 xyt_goal = [function_args["x"], function_args["y"], function_args["theta"]]
                 function(hello_robot, xyt_goal)
-                new_message = [{
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": "Performed action.",
-                    }]
-                # pretty_print_conversation2(new_message)
-                messages.append(new_message[0])
+                messages = add_tool_message(tool_call, function_name, messages)
         return messages
     else:
         print("No tool call.")
