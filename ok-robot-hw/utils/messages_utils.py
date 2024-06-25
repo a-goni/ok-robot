@@ -14,32 +14,33 @@ def pretty_print_conversation(messages):
         elif message["role"] == "user":
             for content in message["content"]:
                 if content["type"] == "text":
-                    print(colored(f"User: {content['text']}\n", role_to_color[message["role"]]))
+                    print(colored(f"User:\n    Content: {content['text']}", role_to_color[message["role"]]))
                 elif content["type"] == "image_url":
-                    print(colored(f"User: [Image not displayed]\n", role_to_color[message["role"]]))
+                    print(colored(f"    Image: [Image displayed on screen]\n", role_to_color[message["role"]]))
         elif message["role"] == "assistant":
-            print(colored(f"Assistant (ID: {message['chat_completion_id']}, Model: {message['model']}, Created: {message['created']}):\n", role_to_color[message["role"]]))
+            print(colored(f"Assistant (Total tokens: {message['usage']['total_tokens']}):\n", role_to_color[message["role"]]))
             for content in message["content"]:
                 if content["type"] == "text":
                     print(colored(f"{content['text']}\n", role_to_color[message["role"]]))
             if "tool_calls" in message and message["tool_calls"]:
                 for tool_call in message["tool_calls"]:
-                    print(colored(f"Tool Call:\n  ID: {tool_call['id']}\n  Function Name: {tool_call['function']['name']}\n  Arguments: {tool_call['function']['arguments']}\n  Type: {tool_call['type']}\n", role_to_color["tool"]))
+                    print(colored(f"Tool Call:\n  Function Name: {tool_call['function']['name']}\n  Arguments: {tool_call['function']['arguments']}\n  Type: {tool_call['type']}\n", role_to_color["assistant"]))
         elif message["role"] == "tool":
-            print(colored(f"Tool:\nFunction name: {message['name']}\nContent: {message['content']}\n", role_to_color[message["role"]]))
+            print(colored(f"Tool: {message['content']}\n", role_to_color[message["role"]]))
 
 def add_system_message(messages):
+    system_message = """
+    You are an autonomous robot in a lab environment with a mobile base and a camera.       
+    Your task is to to find and navigate to the miniature toy kitchen in the lab, avoiding bumping into anything.
+    A good way to initially see the environment is to turn on the spot. Making small movements will also help to avoid obstacles.
+    The toy kitchen is in the room/lab environment. You do not need to exit through the corridors.
+    Succinctly describe what you want to do in one sentence and use the provided function calls to execute navigation. 
+    Once you find the toy kitchen, tell me you have made it, and perform no further actions.
+    """
+
     new_message = [{
         "role": "system", 
-        "content":
-            """
-            You are an autonomous robot in a lab environment with a mobile base and a camera with a FOV (HxW) of 69°x42°.        
-            Your task is to to find the minature toy kitchen in the lab, avoiding bumping into anything at all costs. 
-            Once you find the toy kitchen. Perform no further actions.
-            Do not exit the lab environment.
-            A good way to initially see the environment is to turn on the spot.
-            Succinctly describe what you want to do and use the provided functions to navigate the area.
-            """
+        "content": system_message
     }]
     pretty_print_conversation(new_message)
     messages.append(new_message[0])
@@ -51,13 +52,13 @@ def add_image_message(encoded_image, messages):
                 "content": [
                     {
                         "type": "text",
-                        "text": "Image has a FOV (HxW) of 69°x42°. Make movements accordingly."
+                        "text": "Image has a FOV (HxW) of 69°x42°."
                     },
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{encoded_image}"
-                            }   
+                            "url": f"data:image/png;base64,{encoded_image}"
+                            }
                     }
                 ]}]
     pretty_print_conversation(new_message)
@@ -65,7 +66,12 @@ def add_image_message(encoded_image, messages):
     return messages
 
 def add_response_message(response, messages):
-    new_message = [{
+    # TODO
+    # - Add handling where content is none.
+    # - Add handling for multiple tool calls.
+    tool_calls = getattr(response.choices[0].message, 'tool_calls', None)
+    if tool_calls:
+        new_message = [{
                 "chat_completion_id": response.id,
                 "created": response.created,
                 "model": response.model,
@@ -73,7 +79,7 @@ def add_response_message(response, messages):
                 "usage": {
                     "completion_tokens": response.usage.completion_tokens,
                     "prompt_tokens": response.usage.prompt_tokens,
-                    "total_tokens": response.usage.total_tokens
+                    "total_tokens": response.usage.total_tokens,
                 },
                 "role": response.choices[0].message.role,
                 "content": [
@@ -93,6 +99,25 @@ def add_response_message(response, messages):
                     } for tool_call in response.choices[0].message.tool_calls
                 ]
             }]
+    else:
+        new_message = [{
+                "chat_completion_id": response.id,
+                "created": response.created,
+                "model": response.model,
+                "system_fingerprint": response.system_fingerprint,
+                "usage": {
+                    "completion_tokens": response.usage.completion_tokens,
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                },
+                "role": response.choices[0].message.role,
+                "content": [
+                    {
+                        "type": "text",
+                        "text": response.choices[0].message.content
+                    }
+                ]
+            }]   
     pretty_print_conversation(new_message)
     messages.append(new_message[0])
     return messages

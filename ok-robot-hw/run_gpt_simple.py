@@ -21,11 +21,9 @@ def run():
 
     while True:
         try:
-            messages = capture_and_encode_image(camera, messages)
-
+            messages = capture_and_encode_image(camera=camera, messages=messages, display_seconds=2)
             response, messages = chat_completion_request(messages=messages, client=client, model=GPT_MODEL)
-
-            messages = perform_action(hello_robot, response, messages)
+            messages = perform_action(hello_robot=hello_robot, response=response, messages=messages)
 
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received. Exiting.")
