@@ -21,22 +21,44 @@ def pretty_print_conversation(messages):
             print(colored(f"Assistant (Total tokens: {message['usage']['total_tokens']}):\n", role_to_color[message["role"]]))
             for content in message["content"]:
                 if content["type"] == "text":
-                    print(colored(f"{content['text']}\n", role_to_color[message["role"]]))
+                    print(colored(f"{content['text']}", role_to_color[message["role"]]))
             if "tool_calls" in message and message["tool_calls"]:
                 for tool_call in message["tool_calls"]:
                     print(colored(f"Tool Call:\n  Function Name: {tool_call['function']['name']}\n  Arguments: {tool_call['function']['arguments']}\n  Type: {tool_call['type']}\n", role_to_color["assistant"]))
         elif message["role"] == "tool":
             print(colored(f"Tool: {message['content']}\n", role_to_color[message["role"]]))
 
+def modify_last_entry(data):
+    # Access the last entry in the data list
+    last_entry = data[-1]
+    
+    # Iterate through content in the last entry
+    for content in last_entry['content']:
+        # Check if the content type is 'image_url'
+        if content['type'] == 'image_url':
+            # Replace the image data with a text notification
+            content['type'] = 'text'
+            content['text'] = 'encoded image removed.'
+            # Remove the image_url key
+            del content['image_url']
+    
+    return data
+
 def add_system_message(messages):
     system_message = """
-    You are an autonomous robot in a lab environment with a mobile base and a camera.       
+    You are an autonomous robot in a lab environment with a mobile base and a camera with an image FOV (HxW) of 69°x42°.       
     Your task is to to find and navigate to the miniature toy kitchen in the lab, avoiding bumping into anything.
     A good way to initially see the environment is to turn on the spot. Making small movements will also help to avoid obstacles.
-    The toy kitchen is in the room/lab environment. You do not need to exit through the corridors.
-    Succinctly describe what you want to do in one sentence and use the provided function calls to execute navigation. 
-    Once you find the toy kitchen, tell me you have made it, and perform no further actions.
-    """
+    The toy kitchen is in the room/lab environment. You do not need to exit through the corridors. Avoid looking in the same spots.
+    Provide one sentence one what your plan is and another one on a description of the latest image.
+
+    Format:
+        Plan: [instert sentence here about plan to find minature kitchen and avoid obstacles.]
+        Latest Image: [insert sentence describing the latest image and any relevant information.]
+
+    Once you have a clear view of the toy kitchen, tell me that you have made it, and perform no further actions.
+
+    You must use the function calls provided to execute actions. Perform one function call per response."""
 
     new_message = [{
         "role": "system", 
@@ -52,7 +74,7 @@ def add_image_message(encoded_image, messages):
                 "content": [
                     {
                         "type": "text",
-                        "text": "Image has a FOV (HxW) of 69°x42°."
+                        "text": "Avoid obstacles. Stay well clear."
                     },
                     {
                         "type": "image_url",
@@ -66,61 +88,112 @@ def add_image_message(encoded_image, messages):
     return messages
 
 def add_response_message(response, messages):
-    # TODO
-    # - Add handling where content is none.
-    # - Add handling for multiple tool calls.
-    tool_calls = getattr(response.choices[0].message, 'tool_calls', None)
+    # Removes the encoded image to save space and reduce context window 
+    messages = modify_last_entry(messages)
+
+    choice_message = response.choices[0].message
+
+    # Handle the case where content might be None
+    message_content = choice_message.content if choice_message.content is not None else "No content provided."
+
+    # Base structure for new message
+    new_message = {
+        "chat_completion_id": response.id,
+        "created": response.created,
+        "model": response.model,
+        "system_fingerprint": response.system_fingerprint,
+        "usage": {
+            "completion_tokens": response.usage.completion_tokens,
+            "prompt_tokens": response.usage.prompt_tokens,
+            "total_tokens": response.usage.total_tokens,
+        },
+        "role": choice_message.role,
+        "content": [
+            {
+                "type": "text",
+                "text": message_content
+            }
+        ]
+    }
+
+    # Add tool calls, if any
+    tool_calls = getattr(choice_message, 'tool_calls', None)
     if tool_calls:
-        new_message = [{
-                "chat_completion_id": response.id,
-                "created": response.created,
-                "model": response.model,
-                "system_fingerprint": response.system_fingerprint,
-                "usage": {
-                    "completion_tokens": response.usage.completion_tokens,
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "total_tokens": response.usage.total_tokens,
+        new_message["tool_calls"] = [
+            {
+                "id": tool_call.id,
+                "function": {
+                    "name": tool_call.function.name,
+                    "arguments": tool_call.function.arguments
                 },
-                "role": response.choices[0].message.role,
-                "content": [
-                    {
-                        "type": "text",
-                        "text": response.choices[0].message.content
-                    }
-                ],
-                "tool_calls": [
-                    {
-                        "id": tool_call.id,
-                        "function": {
-                            "name": tool_call.function.name,
-                            "arguments": tool_call.function.arguments
-                        },
-                        "type": tool_call.type
-                    } for tool_call in response.choices[0].message.tool_calls
-                ]
-            }]
-    else:
-        new_message = [{
-                "chat_completion_id": response.id,
-                "created": response.created,
-                "model": response.model,
-                "system_fingerprint": response.system_fingerprint,
-                "usage": {
-                    "completion_tokens": response.usage.completion_tokens,
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "total_tokens": response.usage.total_tokens,
-                },
-                "role": response.choices[0].message.role,
-                "content": [
-                    {
-                        "type": "text",
-                        "text": response.choices[0].message.content
-                    }
-                ]
-            }]   
-    pretty_print_conversation(new_message)
-    messages.append(new_message[0])
+                "type": tool_call.type
+            } for tool_call in tool_calls
+        ]
+
+    pretty_print_conversation([new_message])
+    messages.append(new_message)
+    
     return messages
+
+# def add_response_message(response, messages):
+#     # removes the encoded image to save space and reduce context window 
+#     messages = modify_last_entry(messages)
+
+#     # TODO
+#     # - Add handling where content is none.
+#     # - Add handling for multiple tool calls.
+#     tool_calls = getattr(response.choices[0].message, 'tool_calls', None)
+#     if tool_calls:
+#         new_message = [{
+#                 "chat_completion_id": response.id,
+#                 "created": response.created,
+#                 "model": response.model,
+#                 "system_fingerprint": response.system_fingerprint,
+#                 "usage": {
+#                     "completion_tokens": response.usage.completion_tokens,
+#                     "prompt_tokens": response.usage.prompt_tokens,
+#                     "total_tokens": response.usage.total_tokens,
+#                 },
+#                 "role": response.choices[0].message.role,
+#                 "content": [
+#                     {
+#                         "type": "text",
+#                         "text": response.choices[0].message.content
+#                     }
+#                 ],
+#                 "tool_calls": [
+#                     {
+#                         "id": tool_call.id,
+#                         "function": {
+#                             "name": tool_call.function.name,
+#                             "arguments": tool_call.function.arguments
+#                         },
+#                         "type": tool_call.type
+#                     } for tool_call in response.choices[0].message.tool_calls
+#                 ]
+#             }]
+#     else:
+#         new_message = [{
+#                 "chat_completion_id": response.id,
+#                 "created": response.created,
+#                 "model": response.model,
+#                 "system_fingerprint": response.system_fingerprint,
+#                 "usage": {
+#                     "completion_tokens": response.usage.completion_tokens,
+#                     "prompt_tokens": response.usage.prompt_tokens,
+#                     "total_tokens": response.usage.total_tokens,
+#                 },
+#                 "role": response.choices[0].message.role,
+#                 "content": [
+#                     {
+#                         "type": "text",
+#                         "text": response.choices[0].message.content
+#                     }
+#                 ]
+#             }]   
+#     pretty_print_conversation(new_message)
+#     messages.append(new_message[0])
+#     return messages
 
 def add_tool_message(tool_call, function_name, messages):
     new_message = [{

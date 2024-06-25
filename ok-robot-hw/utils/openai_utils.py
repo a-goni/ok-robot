@@ -36,6 +36,7 @@ tools = [
         "function": {
             "name": "navigate_to",
             "description": "Navigates the robot to a relative position and orientation.",
+            "parallel_tool_calls": "false",
             "parameters": {
                 "type": "object",
                 "properties": {

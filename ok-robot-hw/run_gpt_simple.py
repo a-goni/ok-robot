@@ -10,7 +10,7 @@ from camera import RealSenseCamera
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 GPT_MODEL = "gpt-4o"
 
-def run():    
+def run():
     hello_robot = HelloRobot()
     camera = RealSenseCamera(hello_robot.robot)
     hello_robot.robot.switch_to_navigation_mode()
