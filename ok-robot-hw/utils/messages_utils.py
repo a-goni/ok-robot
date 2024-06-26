@@ -46,19 +46,18 @@ def modify_last_entry(data):
 
 def add_system_message(messages):
     system_message = """
-    You are an autonomous robot in a lab environment with a mobile base and a camera with an image FOV (HxW) of 69°x42°.       
-    Your task is to to find and navigate to the miniature toy kitchen in the lab, avoiding bumping into anything.
-    A good way to initially see the environment is to turn on the spot. Making small movements will also help to avoid obstacles.
-    The toy kitchen is in the room/lab environment. You do not need to exit through the corridors. Avoid looking in the same spots.
-    Knowing this, try and think about where the toy kitchen might be placed in the lab, and explore those areas.
-    Provide one sentence to describe the image, one to build a map, and lastly, a plan.
+    You are an autonomous robot with a mobile base and a camera with an image FOV (HxW) of 69°x42°.       
+    Your task is to to find and navigate to the main kitchen in the lab, avoiding bumping into anything.
+    From your initial starting point, the kitchen is straight, turn left at the hallway. Go straight, until you see the first main corridoor, and it is at the end of that.
+    Make small movements will also help to avoid obstacles.
+    Provide one sentence to describe the image, one to build a map of where you have been, and lastly, a plan.
 
     Format:
         Latest Image: [insert sentence describing the latest image and any relevant information.]
-        Map: [sum the insert information about where you have been, and what you have seen to avoid looking in the same areas.]
-        Plan: [instert sentence here about plan to find minature kitchen and avoid obstacles.]
+        Map: [sum all past tool calls]
+        Plan: [instert sentence here about plan to the kitchen and avoid obstacles.]
         
-    Once you have a clear view of the toy kitchen, tell me that you have made it, and perform no further actions.
+    Once you have a clear view of the kitchen, tell me that you have made it, and perform no further actions.
 
     You must use the function calls provided to execute actions. Perform one function call per response."""
 
@@ -76,7 +75,7 @@ def add_image_message(encoded_image, messages):
                 "content": [
                     {
                         "type": "text",
-                        "text": "Stay well clear of obstacles. Find the toy kitchen."
+                        "text": "Stay well clear of obstacles. Find the main kitchen."
                     },
                     {
                         "type": "image_url",
@@ -136,66 +135,6 @@ def add_response_message(response, messages):
     messages.append(new_message)
     
     return messages
-
-# def add_response_message(response, messages):
-#     # removes the encoded image to save space and reduce context window 
-#     messages = modify_last_entry(messages)
-
-#     # TODO
-#     # - Add handling where content is none.
-#     # - Add handling for multiple tool calls.
-#     tool_calls = getattr(response.choices[0].message, 'tool_calls', None)
-#     if tool_calls:
-#         new_message = [{
-#                 "chat_completion_id": response.id,
-#                 "created": response.created,
-#                 "model": response.model,
-#                 "system_fingerprint": response.system_fingerprint,
-#                 "usage": {
-#                     "completion_tokens": response.usage.completion_tokens,
-#                     "prompt_tokens": response.usage.prompt_tokens,
-#                     "total_tokens": response.usage.total_tokens,
-#                 },
-#                 "role": response.choices[0].message.role,
-#                 "content": [
-#                     {
-#                         "type": "text",
-#                         "text": response.choices[0].message.content
-#                     }
-#                 ],
-#                 "tool_calls": [
-#                     {
-#                         "id": tool_call.id,
-#                         "function": {
-#                             "name": tool_call.function.name,
-#                             "arguments": tool_call.function.arguments
-#                         },
-#                         "type": tool_call.type
-#                     } for tool_call in response.choices[0].message.tool_calls
-#                 ]
-#             }]
-#     else:
-#         new_message = [{
-#                 "chat_completion_id": response.id,
-#                 "created": response.created,
-#                 "model": response.model,
-#                 "system_fingerprint": response.system_fingerprint,
-#                 "usage": {
-#                     "completion_tokens": response.usage.completion_tokens,
-#                     "prompt_tokens": response.usage.prompt_tokens,
-#                     "total_tokens": response.usage.total_tokens,
-#                 },
-#                 "role": response.choices[0].message.role,
-#                 "content": [
-#                     {
-#                         "type": "text",
-#                         "text": response.choices[0].message.content
-#                     }
-#                 ]
-#             }]   
-#     pretty_print_conversation(new_message)
-#     messages.append(new_message[0])
-#     return messages
 
 def add_tool_message(tool_call, function_name, messages):
     new_message = [{
