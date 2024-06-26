@@ -1,33 +1,122 @@
 import cv2
 import base64
 import json
+import numpy as np
 import matplotlib.pyplot as plt
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from utils.messages_utils import add_response_message, add_image_message, add_tool_message
 
-# Function to capture an image and encode it to base64
+# # Function to capture an image and encode it to base64
+# def capture_and_encode_image(camera, messages, display_seconds=1):
+#     rgb_image, _, _ = camera.capture_image()
+
+#     # Rotate the image 90 degrees to the right
+#     rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
+
+#     # Display the captured image
+#     fig = plt.figure(figsize=(10, 10))
+#     plt.imshow(rgb_image)
+#     plt.title("Captured Image")
+#     plt.axis('off')
+#     plt.show(block=True)
+#     plt.pause(display_seconds)
+#     plt.close(fig)
+
+#     _, buffer = cv2.imencode('.png', rgb_image)
+
+#     # if buffer.nbytes > 20 * 1024 * 1024:
+#     #     print("Image size exceeds 20 MB after encoding.")
+    
+#     encoded_image = base64.b64encode(buffer).decode('utf-8')
+#     messages = add_image_message(encoded_image, messages)
+#     return messages
+
+# def capture_and_encode_image(camera, messages, display_seconds=1):
+#     # Capture both RGB and depth images
+#     rgb_image, depth_image, _ = camera.capture_image()
+
+#     # Rotate both images 90 degrees to the right
+#     rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
+#     depth_image = cv2.rotate(depth_image, cv2.ROTATE_90_CLOCKWISE)
+    
+#     # Display RGB image in a separate figure
+#     plt.figure(figsize=(5, 5))
+#     plt.imshow(rgb_image)
+#     plt.title("RGB Image")
+#     plt.axis('off')
+#     plt.show(block=False)
+#     plt.pause(display_seconds)
+#     plt.close()
+
+#     # Display depth image in a separate figure
+#     plt.figure(figsize=(5, 5))
+#     depth_display = np.uint8(depth_image)
+#     depth_colormap = plt.imshow(depth_display, cmap='jet')
+#     plt.colorbar(depth_colormap, orientation='vertical', label='Depth Scale')
+#     plt.title("Depth Image")
+#     plt.axis('off')
+#     plt.show(block=True)
+#     plt.pause(display_seconds)
+#     plt.close()
+
+#     # Encode the RGB image
+#     _, buffer = cv2.imencode('.png', rgb_image)
+#     encoded_image = base64.b64encode(buffer).decode('utf-8')
+#     messages = add_image_message(encoded_image=encoded_image, messages=messages, RGB=True)
+
+#     # Encode the depth image
+#     _, depth_buffer = cv2.imencode('.png', depth_image)
+#     encoded_depth_image = base64.b64encode(depth_buffer).decode('utf-8')
+#     messages = add_image_message(encoded_image=encoded_depth_image, messages=messages, RGB=False)
+
+#     return messages
+
 def capture_and_encode_image(camera, messages, display_seconds=1):
-    rgb_image, _, _ = camera.capture_image()
+    # Capture both RGB and depth images
+    rgb_image, depth_image, _ = camera.capture_image()
 
-    # Rotate the image 90 degrees to the right
+    # Rotate both images 90 degrees to the right
     rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
+    depth_image = cv2.rotate(depth_image, cv2.ROTATE_90_CLOCKWISE)
 
-    # Display the captured image
-    fig = plt.figure(figsize=(10, 10))
+    # Extract the range of depth values
+    min_val, max_val = depth_image.min(), depth_image.max()
+
+    depth_image_normalized = cv2.normalize(depth_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+
+    # Display RGB image in a separate figure
+    plt.figure(figsize=(5, 5))
     plt.imshow(rgb_image)
-    plt.title("Captured Image")
+    plt.title("RGB Image")
     plt.axis('off')
     plt.show(block=False)
     plt.pause(display_seconds)
-    plt.close(fig)
+    plt.close()
 
+    # Display depth image in a separate figure with jet colormap
+    plt.figure(figsize=(5, 5))
+    depth_colormap = plt.imshow(depth_image_normalized, cmap='jet')
+    colorbar = plt.colorbar(depth_colormap, orientation='vertical')
+    colorbar.set_label('Depth Scale')
+    colorbar.set_ticks([0, 255])  # Assuming you want to show the scale of the normalized image
+    colorbar.set_ticklabels([f"{min_val:.2f}m", f"{max_val:.2f}m"])  # Adjust format as needed
+    plt.title("Depth Image")
+    plt.axis('off')
+    plt.show(block=False)
+    plt.pause(display_seconds)
+    plt.close()
+
+    # Encode the RGB image
     _, buffer = cv2.imencode('.png', rgb_image)
-
-    if buffer.nbytes > 20 * 1024 * 1024:
-        print("Image size exceeds 20 MB after encoding.")
-    
     encoded_image = base64.b64encode(buffer).decode('utf-8')
-    messages = add_image_message(encoded_image, messages)
+    messages = add_image_message(encoded_image=encoded_image, messages=messages, RGB=True)
+
+    # Apply colormap to depth image and convert to BGR for encoding
+    depth_color = cv2.applyColorMap(depth_image_normalized, cv2.COLORMAP_JET)
+    _, depth_buffer = cv2.imencode('.png', depth_color)
+    encoded_depth_image = base64.b64encode(depth_buffer).decode('utf-8')
+    messages = add_image_message(encoded_image=encoded_depth_image, messages=messages, RGB=False)
+
     return messages
 
 tools = [

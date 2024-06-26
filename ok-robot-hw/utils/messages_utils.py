@@ -69,23 +69,41 @@ def add_system_message(messages):
     messages.append(new_message[0])
     return messages
 
-def add_image_message(encoded_image, messages):
-    new_message = [{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Stay well clear of obstacles. Find the main kitchen."
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{encoded_image}"
-                            }
-                    }
-                ]}]
-    pretty_print_conversation(new_message)
-    messages.append(new_message[0])
+def add_image_message(encoded_image, messages, RGB=True):
+    if RGB:
+        new_message = [{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "RGB Image. Find the main kitchen."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{encoded_image}"
+                                }
+                        }
+                    ]}]
+        pretty_print_conversation(new_message)
+        messages.append(new_message[0])
+    else:
+        new_message = [{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Depth image, stay well clear of obstacles."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{encoded_image}"
+                                }
+                        }
+                    ]}]
+        pretty_print_conversation(new_message)
+        messages.append(new_message[0])
     return messages
 
 def add_response_message(response, messages):
