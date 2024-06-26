@@ -35,14 +35,14 @@ tools = [
         "type": "function",
         "function": {
             "name": "navigate_to",
-            "description": "Navigates the robot to a relative position and orientation.",
+            "description": "Navigates the robot to a relative position and orientation, based on where it currently is.",
             "parallel_tool_calls": "false",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "x": {"type": "number", "description": "The x coordinate in meters. Positive is forward."},
-                    "y": {"type": "number", "description": "The y coordinate in meters. Positive is left"},
-                    "theta": {"type": "number", "description": "The orientation angle in radians. Positive is counterclockwise"}
+                    "x": {"type": "number", "description": "The relative x coordinate in meters. Positive is forward."},
+                    "y": {"type": "number", "description": "The relative y coordinate in meters. Positive is left"},
+                    "theta": {"type": "number", "description": "The relative orientation angle in radians. Positive is counterclockwise"}
                 },
                 "required": ["x", "y", "theta"]
             },

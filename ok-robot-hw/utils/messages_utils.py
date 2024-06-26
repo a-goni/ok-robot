@@ -50,12 +50,14 @@ def add_system_message(messages):
     Your task is to to find and navigate to the miniature toy kitchen in the lab, avoiding bumping into anything.
     A good way to initially see the environment is to turn on the spot. Making small movements will also help to avoid obstacles.
     The toy kitchen is in the room/lab environment. You do not need to exit through the corridors. Avoid looking in the same spots.
-    Provide one sentence one what your plan is and another one on a description of the latest image.
+    Knowing this, try and think about where the toy kitchen might be placed in the lab, and explore those areas.
+    Provide one sentence to describe the image, one to build a map, and lastly, a plan.
 
     Format:
-        Plan: [instert sentence here about plan to find minature kitchen and avoid obstacles.]
         Latest Image: [insert sentence describing the latest image and any relevant information.]
-
+        Map: [sum the insert information about where you have been, and what you have seen to avoid looking in the same areas.]
+        Plan: [instert sentence here about plan to find minature kitchen and avoid obstacles.]
+        
     Once you have a clear view of the toy kitchen, tell me that you have made it, and perform no further actions.
 
     You must use the function calls provided to execute actions. Perform one function call per response."""
@@ -74,7 +76,7 @@ def add_image_message(encoded_image, messages):
                 "content": [
                     {
                         "type": "text",
-                        "text": "Avoid obstacles. Stay well clear."
+                        "text": "Stay well clear of obstacles. Find the toy kitchen."
                     },
                     {
                         "type": "image_url",
@@ -89,7 +91,7 @@ def add_image_message(encoded_image, messages):
 
 def add_response_message(response, messages):
     # Removes the encoded image to save space and reduce context window 
-    messages = modify_last_entry(messages)
+    # messages = modify_last_entry(messages)
 
     choice_message = response.choices[0].message
 
