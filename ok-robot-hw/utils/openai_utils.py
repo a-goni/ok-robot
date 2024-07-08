@@ -3,6 +3,7 @@ import base64
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+from io import BytesIO
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from utils.messages_utils import add_response_message, add_image_message, add_tool_message
 
@@ -31,47 +32,7 @@ from utils.messages_utils import add_response_message, add_image_message, add_to
 #     messages = add_image_message(encoded_image, messages)
 #     return messages
 
-# def capture_and_encode_image(camera, messages, display_seconds=1):
-#     # Capture both RGB and depth images
-#     rgb_image, depth_image, _ = camera.capture_image()
-
-#     # Rotate both images 90 degrees to the right
-#     rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
-#     depth_image = cv2.rotate(depth_image, cv2.ROTATE_90_CLOCKWISE)
-    
-#     # Display RGB image in a separate figure
-#     plt.figure(figsize=(5, 5))
-#     plt.imshow(rgb_image)
-#     plt.title("RGB Image")
-#     plt.axis('off')
-#     plt.show(block=False)
-#     plt.pause(display_seconds)
-#     plt.close()
-
-#     # Display depth image in a separate figure
-#     plt.figure(figsize=(5, 5))
-#     depth_display = np.uint8(depth_image)
-#     depth_colormap = plt.imshow(depth_display, cmap='jet')
-#     plt.colorbar(depth_colormap, orientation='vertical', label='Depth Scale')
-#     plt.title("Depth Image")
-#     plt.axis('off')
-#     plt.show(block=True)
-#     plt.pause(display_seconds)
-#     plt.close()
-
-#     # Encode the RGB image
-#     _, buffer = cv2.imencode('.png', rgb_image)
-#     encoded_image = base64.b64encode(buffer).decode('utf-8')
-#     messages = add_image_message(encoded_image=encoded_image, messages=messages, RGB=True)
-
-#     # Encode the depth image
-#     _, depth_buffer = cv2.imencode('.png', depth_image)
-#     encoded_depth_image = base64.b64encode(depth_buffer).decode('utf-8')
-#     messages = add_image_message(encoded_image=encoded_depth_image, messages=messages, RGB=False)
-
-#     return messages
-
-def capture_and_encode_image(camera, messages, display_seconds=1):
+def capture_and_encode_image(camera, messages, display_seconds=2):
     # Capture both RGB and depth images
     rgb_image, depth_image, _ = camera.capture_image()
 
@@ -79,43 +40,34 @@ def capture_and_encode_image(camera, messages, display_seconds=1):
     rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
     depth_image = cv2.rotate(depth_image, cv2.ROTATE_90_CLOCKWISE)
 
-    # Extract the range of depth values
-    min_val, max_val = depth_image.min(), depth_image.max()
+    # Create a figure with two subplots
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 
-    depth_image_normalized = cv2.normalize(depth_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    # Display RGB image
+    ax[0].imshow(rgb_image)
+    ax[0].set_title("RGB Image")
+    ax[0].axis('off')
 
-    # Display RGB image in a separate figure
-    plt.figure(figsize=(5, 5))
-    plt.imshow(rgb_image)
-    plt.title("RGB Image")
-    plt.axis('off')
-    plt.show(block=False)
-    plt.pause(display_seconds)
-    plt.close()
-
-    # Display depth image in a separate figure with jet colormap
-    plt.figure(figsize=(5, 5))
-    depth_colormap = plt.imshow(depth_image_normalized, cmap='jet')
-    colorbar = plt.colorbar(depth_colormap, orientation='vertical')
+    # Display depth image with jet colormap
+    depth_colormap = ax[1].imshow(depth_image, cmap='jet')
+    colorbar = plt.colorbar(depth_colormap, ax=ax[1], orientation='vertical')
     colorbar.set_label('Depth Scale')
-    colorbar.set_ticks([0, 255])  # Assuming you want to show the scale of the normalized image
-    colorbar.set_ticklabels([f"{min_val:.2f}m", f"{max_val:.2f}m"])  # Adjust format as needed
-    plt.title("Depth Image")
-    plt.axis('off')
+    ax[1].set_title("Depth Image")
+    ax[1].axis('off')
+
+    # Save the figure to a BytesIO object
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # Display the figure for a certain amount of seconds
     plt.show(block=False)
     plt.pause(display_seconds)
     plt.close()
 
-    # Encode the RGB image
-    _, buffer = cv2.imencode('.png', rgb_image)
-    encoded_image = base64.b64encode(buffer).decode('utf-8')
-    messages = add_image_message(encoded_image=encoded_image, messages=messages, RGB=True)
-
-    # Apply colormap to depth image and convert to BGR for encoding
-    depth_color = cv2.applyColorMap(depth_image_normalized, cv2.COLORMAP_JET)
-    _, depth_buffer = cv2.imencode('.png', depth_color)
-    encoded_depth_image = base64.b64encode(depth_buffer).decode('utf-8')
-    messages = add_image_message(encoded_image=encoded_depth_image, messages=messages, RGB=False)
+    # Encode the combined image
+    encoded_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+    messages = add_image_message(encoded_image=encoded_image, messages=messages)
 
     return messages
 
@@ -190,32 +142,6 @@ def perform_action(hello_robot, response, messages):
 def navigate_to(robot, xyt_goal):
     print(f"Navigating robot to relative position: x={xyt_goal[0]}, y={xyt_goal[1]}, theta={xyt_goal[2]}\n")
     robot.robot.nav.navigate_to(xyt_goal, relative=True)
-
-# def perform_action(hello_robot, response, messages):
-#     tool_calls = response.choices[0].message.tool_calls
-
-#     if tool_calls:
-#         print("Tool call detected.")
-#         available_functions = {
-#             "navigate_to": navigate_to,
-#             "stop": stop,
-#         }
-#         for tool_call in tool_calls:
-#             function_name = tool_call.function.name
-#             if function_name in available_functions:
-#                 function = available_functions[function_name]
-#                 if function_name == "navigate_to":
-#                     function_args = json.loads(tool_call.function.arguments)
-#                     xyt_goal = [function_args["x"], function_args["y"], function_args["theta"]]
-#                     function(hello_robot, xyt_goal)
-#                     messages = add_tool_message(tool_call, function_name, messages)
-#                 else:
-#                     messages = add_tool_message(tool_call, function_name, messages)
-#                     function()
-#         return messages
-#     else:
-#         print("No tool call.")
-#         return messages
 
 # # function not used atm.
 # def stop():

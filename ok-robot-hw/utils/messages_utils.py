@@ -47,19 +47,18 @@ def modify_last_entry(data):
 def add_system_message(messages):
     system_message = """
     You are an autonomous robot with a mobile base and a camera with an image FOV (HxW) of 69°x42°.       
-    Your task is to to find and navigate to the main kitchen in the lab, avoiding bumping into anything.
-    Guideline: From your initial starting point, the kitchen is through straight out of the lab turning left at the hallway. Go straight, until you see the first main corridoor, and it is at the end of that on the right.
-    Make small movements (0.5 to 1.5m) to help avoid collisions with obstacles, althought dont be affraid to turn on the spot to adjust course.
-    Provide one sentence to describe the image, one to build a map of where you have been, and lastly, a plan.
+    Your task is to find and navigate to the toy kitchen in the lab, avoiding obstacles.
+    Make small movements (0.5 to 1m) to help avoid collisions with obstacles. Turning on the spot can help to adjust course. Avoid being closer than 1m to any object.
+    The toy kitchen is in the immediate area. You do not need to exit the room, or lab area. 
+    Provide a text response and use an in built function/tool call.
 
-    Format:
-        Latest Image: [insert a sentence describing the latest image and any relevant information.]
-        Map: [sum all past tool calls]
-        Plan: [follow guideline to find the kitcheninstert sentence here about plan to the kitchen and avoid obstacles.]
+    Text Response Format:
+        Latest Image: [provide one sentence to describe the image and any relevant information.]
+        Map: [describe where you have been, using previous tool calls]
+        Plan: [describe the plan to find the kitchen and avoid obstacles.]
         
-    Once you have a clear view of the kitchen, tell me that you have made it, and perform no further actions.
-
-    You must use the function calls provided to execute actions. Perform one function call per response."""
+    Once you have a clear view of the kitchen, tell me that you have found it, and perform no further actions.
+    You must use one of the function/tool calls provided to execute actions."""
 
     new_message = [{
         "role": "system", 
@@ -69,46 +68,28 @@ def add_system_message(messages):
     messages.append(new_message[0])
     return messages
 
-def add_image_message(encoded_image, messages, RGB=True):
-    if RGB:
-        new_message = [{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "RGB Image. Find the main kitchen."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                                }
-                        }
-                    ]}]
-        pretty_print_conversation(new_message)
-        messages.append(new_message[0])
-    else:
-        new_message = [{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Depth image, stay well clear of obstacles."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{encoded_image}"
-                                }
-                        }
-                    ]}]
-        pretty_print_conversation(new_message)
-        messages.append(new_message[0])
+def add_image_message(encoded_image, messages):
+    new_message = [{
+        "role": "user",
+        "content": [{
+            "type": "text",
+            "text": "RGB Image (left), Depth Image (right) with distance scale in meters. Find the toy kitchen and stay well clear of obstacles."
+        },
+        {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{encoded_image}"
+            }
+        }
+    ]}]
+    pretty_print_conversation(new_message)
+    messages.append(new_message[0])
+    
     return messages
 
 def add_response_message(response, messages):
     # Removes the encoded image to save space and reduce context window 
-    # messages = modify_last_entry(messages)
+    messages = modify_last_entry(messages)
 
     choice_message = response.choices[0].message
 
