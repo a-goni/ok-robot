@@ -11,13 +11,17 @@ class WideCamera:
             return
 
     def capture_image(self):
-        # Capture image from first camera
+        # Optionally clear the cache by grabbing a few frames
+        for _ in range(5):
+            self.camera1.grab()
+            self.camera2.grab()
+
+        # Now capture the actual images
         ret1, rgb_image1 = self.camera1.read()
         if not ret1:
             print("Failed to capture image from camera 1")
             return None
 
-        # Capture image from second camera
         ret2, rgb_image2 = self.camera2.read()
         if not ret2:
             print("Failed to capture image from camera 2")

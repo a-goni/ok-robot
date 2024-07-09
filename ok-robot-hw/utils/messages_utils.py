@@ -46,19 +46,19 @@ def modify_last_entry(data):
 
 def add_system_message(messages):
     system_message = """
-    You are an autonomous robot with a mobile base and a camera with an image FOV (HxW) of 69°x42°.       
+    You are an autonomous robot with a mobile base and access to cameras.       
     Your task is to find and navigate to the toy kitchen in the lab, avoiding obstacles.
-    Make small movements (0.5 to 1m) to help avoid collisions with obstacles. Turning on the spot can help to adjust course. Avoid being closer than 1m to any object.
-    The toy kitchen is in the immediate area. You do not need to exit the room, or lab area. 
-    Provide a text response and use an in built function/tool call.
+    Make small movements (no larger than 1m) to help avoid collisions with obstacles. Turning on the spot can help to adjust course and view surroundings. 
+    The toy kitchen is in the immediate area. You do not need to exit through any corridors, and you do not need to exit the lab area. 
+    Provide a text response and then run an in built function/tool call. Use one function/tool call per response. Do not write the tool call in the text response.
 
     Text Response Format:
-        Latest Image: [provide one sentence to describe the image and any relevant information.]
-        Map: [describe where you have been, using previous tool calls]
+        Latest Image: [provide a description of what you see for each image.]
+        Map: [describe where you have been]
         Plan: [describe the plan to find the kitchen and avoid obstacles.]
         
-    Once you have a clear view of the kitchen, tell me that you have found it, and perform no further actions.
-    You must use one of the function/tool calls provided to execute actions."""
+    Once you have a clear view of the kitchen, tell me that you have found it, and run the stop function/tool.
+    You must execute one of the function/tool calls provided to perform actions. Only provide one function/tool call per response."""
 
     new_message = [{
         "role": "system", 
@@ -68,12 +68,48 @@ def add_system_message(messages):
     messages.append(new_message[0])
     return messages
 
+def add_image_messages(encoded_images, messages, message):
+    """
+    Adds a message with multiple images to the messages list.
+    
+    Args:
+    encoded_images (list): List of base64 encoded images.
+    messages (list): Current list of message dictionaries.
+    message_text (str): Text content to accompany the images.
+    
+    Returns:
+    list: Updated list of message dictionaries.
+    """
+    # Create a new message dictionary
+    new_message = {
+        "role": "user",
+        "content": [{
+            "type": "text",
+            "text": message
+        }]
+    }
+    
+    # Add each encoded image as a new image_url section in the message content
+    for encoded_image in encoded_images:
+        image_content = {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{encoded_image}"
+            }
+        }
+        new_message["content"].append(image_content)
+    
+    pretty_print_conversation([new_message])
+    messages.append(new_message)
+    
+    return messages
+
 def add_image_message(encoded_image, messages):
     new_message = [{
         "role": "user",
         "content": [{
             "type": "text",
-            "text": "RGB Image (left), Depth Image (right) with distance scale in meters. Find the toy kitchen and stay well clear of obstacles."
+            "text": "Forward facing RGB image (left), forward facing depth image (middle) with distance scale in meters, top-down wide view (right), facing forward. Find the toy kitchen and stay clear of obstacles."
         },
         {
             "type": "image_url",
@@ -87,9 +123,10 @@ def add_image_message(encoded_image, messages):
     
     return messages
 
+
 def add_response_message(response, messages):
     # Removes the encoded image to save space and reduce context window 
-    messages = modify_last_entry(messages)
+    # messages = modify_last_entry(messages)
 
     choice_message = response.choices[0].message
 
