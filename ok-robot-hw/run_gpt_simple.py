@@ -2,7 +2,7 @@ import os
 import signal
 from wide_camera import WideCamera
 from utils.asier_utils import signal_handler
-from utils.openai_utils import chat_completion_request, perform_action, capture_RGB, capture_RGB_depth, capture_RGB_topdown, capture_RGB_depth_topdown, capture_RGB_depth_topdown_gripper, capture_RGB_topdown_gripper
+from utils.openai_utils import chat_completion_request, perform_action, capture_RGB, capture_RGB_depth, capture_RGB_topdown, capture_RGB_depth_topdown, capture_RGB_depth_topdown_gripper, capture_RGB_topdown_gripper, capture_RGB_map
 from utils.messages_utils import add_system_message
 from openai import OpenAI
 from robot import HelloRobot
@@ -28,7 +28,8 @@ def run():
             # messages = capture_RGB_topdown(camera, wide_camera, messages, display_seconds=3)
             # messages = capture_RGB_depth_topdown(camera, wide_camera, messages, display_seconds=3)
             # messages = capture_RGB_depth_topdown_gripper(camera, wide_camera, messages, display_seconds=3)
-            messages = capture_RGB_topdown_gripper(camera, wide_camera, messages, display_seconds=3)
+            # messages = capture_RGB_topdown_gripper(camera, wide_camera, messages, display_seconds=3)
+            messages = capture_RGB_map(camera, messages, display_seconds=3)
 
             response, messages = chat_completion_request(messages=messages, client=client, model=GPT_MODEL)
             messages = perform_action(hello_robot=hello_robot, response=response, messages=messages)

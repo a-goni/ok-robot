@@ -8,7 +8,7 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt
 from utils.messages_utils import add_response_message, add_image_messages, add_image_message, add_tool_message
 
 RGB_message = """
-        This image displays a forward-facing RGB view with an image FOV (HxW) of 69°x42°. This is a narrow FOV, so if something appears close in your FOV, try to avoid it. The robot base is wide, so it is easy to hit things. This view should be used for basic visual tasks and determining what is directly infront of the robot."""
+        This image displays a forward-facing RGB view with an image FOV (HxW) of 69°x42°. This is a narrow FOV, so if something appears close in your FOV, try to avoid it. The robot base is wide, so it is easy to hit things. Find the toy kitchen."""
 
 RGB_depth_message = """
         This set includes two images: a forward-facing RGB image and a corresponding depth image. The RGB image shows the environment in color, while the depth image provides distance measurements using a color scale, which helps in understanding the spatial arrangement and distances of objects in the scene. Both these cameras have a narrow FOV, so if something appears close, avoid it by turning. The robot base is wide, so it is easy to hit things."""
@@ -25,7 +25,7 @@ RGB_topdown_gripper_message = """
 RGB_depth_topdown_gripper_message = """
         This message includes four images: a forward-facing RGB image, a depth image with a meter scale, a top-down fish-eyed view from the robot, and a forward facing fish-eyed view from the gripper. The RGB and depth images provide an understanding of the space directly in front of the robot, while the top-down image offers a fish-eyed view of the surrounding area of the robot, helpful navigation and obstacle avoidance, and the gripper front facing fish-eyed view allows for a wider view facing forward, to see more of what is around in front."""
 
-def capture_RGB(camera, messages, display_seconds=2):
+def capture_RGB(camera, messages, display_seconds=3):
     # function encodes RGB image and adds this to the message array.
     rgb_image, _, _ = camera.capture_image()
 
@@ -312,6 +312,143 @@ def capture_RGB_topdown_gripper(camera, wide_camera, messages, display_seconds=2
     messages = add_image_messages(encoded_images=encoded_images, messages=messages, message=RGB_topdown_gripper_message)
 
     return messages
+
+import rospy
+from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import PoseStamped
+import numpy as np
+import cv2
+import tf
+
+RGB_map_message = """
+        This message includes two images: a forward-facing RGB image with a FOV (HxW) of 69°x42° and a map image created by the onboard lidar with the robot's current pose, and travelled path. The RGB image shows what lies directly in front of the robot. The map image provides spatial context, showing the robot's location, pose, and a 1.5m circle around the robot, to help show collision areas, navigable paths, and potential areas to explore."""
+
+# Global variables to store map and pose data
+map_data = None
+robot_pose = None
+past_positions = []
+
+def capture_RGB_map(camera, messages, display_seconds=2):
+    global map_data, robot_pose, past_positions
+
+    # Capture the RGB image
+    rgb_image, _, _ = camera.capture_image()
+    rgb_image = cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
+
+    # Callback functions to update map and pose data
+    def map_callback(map_msg):
+        global map_data
+        map_data = map_msg
+
+    def slam_out_pose_callback(pose_msg):
+        global robot_pose
+        position = pose_msg.pose.position
+        orientation = pose_msg.pose.orientation
+        euler = tf.transformations.euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
+        robot_pose = (position.x, position.y, euler[2])
+
+    # Subscribe to the map and pose topics
+    map_sub = rospy.Subscriber('/map', OccupancyGrid, map_callback)
+    pose_sub = rospy.Subscriber('/slam_out_pose', PoseStamped, slam_out_pose_callback)
+
+    # Allow some time to receive messages
+    rospy.sleep(1)
+
+    # Process the map data to create an image
+    if map_data and robot_pose:
+        width = map_data.info.width
+        height = map_data.info.height
+        resolution = map_data.info.resolution
+        origin_x = map_data.info.origin.position.x
+        origin_y = map_data.info.origin.position.y
+        data = np.array(map_data.data).reshape((height, width))
+
+        # Convert the map data to an image
+        img = np.zeros((height, width, 3), dtype=np.uint8)
+        img[data == 100] = [0, 0, 0]         # Occupied cells are black
+        img[data == -1] = [128, 128, 128]    # Unknown cells are gray
+        img[data == 0] = [255, 255, 255]     # Free cells are white
+
+        # Find the bounding box of occupied and free cells
+        mask = (data == 100) | (data == 0)
+        coords = np.argwhere(mask)
+        if coords.size > 0:
+            top_left = coords.min(axis=0)
+            bottom_right = coords.max(axis=0)
+            img_cropped = img[top_left[0]:bottom_right[0]+1, top_left[1]:bottom_right[1]+1]
+        else:
+            img_cropped = img  # If no occupied or free cells, keep the original image
+
+        # Add robot pose to the image
+        robot_x, robot_y, robot_theta = robot_pose
+        map_x = int((robot_x - origin_x) / resolution)
+        map_y = int((robot_y - origin_y) / resolution)
+
+        # Convert to coordinates relative to the cropped image
+        map_x -= top_left[1]
+        map_y -= top_left[0]
+
+        # Draw the robot's past positions as a faint line
+        if len(past_positions) > 1:
+            for i in range(1, len(past_positions)):
+                cv2.line(img_cropped,
+                         (int((past_positions[i-1][0] - origin_x) / resolution) - top_left[1],
+                          int((past_positions[i-1][1] - origin_y) / resolution) - top_left[0]),
+                         (int((past_positions[i][0] - origin_x) / resolution) - top_left[1],
+                          int((past_positions[i][1] - origin_y) / resolution) - top_left[0]),
+                         (255, 0, 0), 1)
+
+        # Draw a 1.5m radius circle around the robot's position
+        radius = int(1.5 / resolution)  # Convert 1.5 meters to pixels
+        cv2.circle(img_cropped, (map_x, map_y), radius, (0, 255, 0), 1)
+
+        # Draw robot position (a circle) and orientation (a line)
+        cv2.circle(img_cropped, (map_x, map_y), 2, (0, 0, 255), -1)
+        line_length = 10
+        line_x = int(map_x + line_length * np.cos(robot_theta))
+        line_y = int(map_y + line_length * np.sin(robot_theta))
+        cv2.line(img_cropped, (map_x, map_y), (line_x, line_y), (0, 0, 255), 2)
+
+        # Append the current robot position to the past positions
+        past_positions.append((robot_x, robot_y))
+
+        image_to_show = img_cropped
+        image_to_show = cv2.flip(image_to_show, 1)
+        # image_to_show = cv2.flip(image_to_show, 0)
+
+        # Display the captured images
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        fig.canvas.manager.window.move(0, 0)
+        ax[0].imshow(rgb_image)
+        ax[0].set_title("Captured RGB Image")
+        ax[0].axis('off')
+
+        ax[1].imshow(image_to_show)
+        ax[1].set_title("Map with Robot Pose")
+        ax[1].axis('off')
+
+        plt.show(block=True)
+        plt.pause(display_seconds)
+        plt.close(fig)
+
+        # Encode the images
+        _, rgb_buffer = cv2.imencode('.png', rgb_image)
+        encoded_rgb_image = base64.b64encode(rgb_buffer).decode('utf-8')
+
+        _, map_buffer = cv2.imencode('.png', image_to_show)
+        encoded_map_image = base64.b64encode(map_buffer).decode('utf-8')
+        encoded_images = [encoded_rgb_image, encoded_map_image]
+
+        messages = add_image_messages(encoded_images=encoded_images, messages=messages, message=RGB_map_message)
+    else:
+        messages = add_image_message(encoded_images=[base64.b64encode(cv2.imencode('.png', rgb_image)[1]).decode('utf-8')], messages=messages, message="Could not capture map data.")
+
+    # Unsubscribe from the topics
+    map_sub.unregister()
+    pose_sub.unregister()
+
+    return messages
+
 
 tools = [
     {

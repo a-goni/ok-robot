@@ -1,4 +1,5 @@
 import cv2
+from robot import HelloRobot
 
 class WideCamera:
     def __init__(self, camera1_index=6, camera2_index=8):
@@ -43,6 +44,8 @@ class WideCamera:
 # Example usage
 if __name__ == "__main__":
     wide_cam = WideCamera()  # using the correct camera indices now
+    hello_robot = HelloRobot()
+    hello_robot.robot.move_to_new_nav_posture()
     images = wide_cam.capture_image()
     if images:
         wide_cam.save_images(images[0], images[1], "path_to_save_image1.jpg", "path_to_save_image2.jpg")
