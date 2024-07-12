@@ -260,6 +260,47 @@ def capture_RGB_depth_topdown_gripper(camera, wide_camera, messages, display_sec
 
     return messages
 
+topdown_gripper_message = """
+        This message includes two images: a down-facing fish-eyed view from the robot's head and a forward-facing fish-eyed view from the robot's gripper. The down-facing image should be used to avoid obstacles, navigation, as well as observe what is in the surroundings. The forward-facing image should be used for identifying what is infront of the robot, and """
+
+def capture_topdown_gripper(wide_camera, messages, display_seconds=2):
+    # Capture wide-angle images
+    topdown_image, gripper_image = wide_camera.capture_image()
+
+    topdown_image = cv2.cvtColor(topdown_image, cv2.COLOR_BGR2RGB)
+    gripper_image = cv2.cvtColor(gripper_image, cv2.COLOR_BGR2RGB)
+
+    # Encode the top-down image
+    _, topdown_buffer = cv2.imencode('.png', topdown_image)
+    encoded_topdown_image = base64.b64encode(topdown_buffer).decode('utf-8')
+
+    # Encode the gripper image
+    _, gripper_buffer = cv2.imencode('.png', gripper_image)
+    encoded_gripper_image = base64.b64encode(gripper_buffer).decode('utf-8')
+
+    # Store encoded images
+    encoded_images = [encoded_topdown_image, encoded_gripper_image]
+
+    # Display all images in a subplot
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    fig.canvas.manager.window.move(0,0)
+    ax[0].imshow(topdown_image)
+    ax[0].set_title("Top-down View")
+    ax[0].axis('off')
+
+    ax[1].imshow(gripper_image)
+    ax[1].set_title("Gripper View")
+    ax[1].axis('off')
+
+    plt.show(block=True)
+    plt.pause(display_seconds)
+    plt.close()
+
+    messages = add_image_messages(encoded_images=encoded_images, messages=messages, message=topdown_gripper_message)
+
+    return messages
+
+
 def capture_RGB_topdown_gripper(camera, wide_camera, messages, display_seconds=2):
     # Capture RGB, depth, wide-angle images
     rgb_image, _ , _ = camera.capture_image()
@@ -321,7 +362,7 @@ import cv2
 import tf
 
 RGB_map_message = """
-        This message includes two images: a forward-facing RGB image with a FOV (HxW) of 69°x42° and a map image created by the onboard lidar with the robot's current pose, and travelled path. The RGB image shows what lies directly in front of the robot. The map image provides spatial context, showing the robot's location, pose, and a 1.5m circle around the robot, to help show collision areas, navigable paths, and potential areas to explore."""
+        This message includes two images: a forward-facing RGB image with a FOV (HxW) of 69°x42° and a map image created by the onboard lidar with the robot's current pose, and travelled path. The RGB image shows what lies directly in front of the robot. The map image provides spatial context, showing the robot's location, pose, and a 1.5m circle around the robot, to help show collision areas, navigable paths, and potential areas to explore. The images are very distorted as they both have fish-eyed lens and provide a very wide field of view. """
 
 # Global variables to store map and pose data
 map_data = None
@@ -462,7 +503,7 @@ tools = [
                 "properties": {
                     "x": {"type": "number", "description": "The relative x coordinate in meters. Positive is forward."},
                     "y": {"type": "number", "description": "The relative y coordinate in meters. Positive is left"},
-                    "theta": {"type": "number", "description": "The relative orientation angle in radians. Positive is counterclockwise"}
+                    "theta": {"type": "number", "description": "The relative orientation angle in radians. Positive is counterclockwise (left)"}
                 },
                 "required": ["x", "y", "theta"]
             },
