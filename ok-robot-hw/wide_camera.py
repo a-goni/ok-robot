@@ -1,15 +1,25 @@
 import cv2
+import subprocess
 from robot import HelloRobot
 
 class WideCamera:
-    def __init__(self, camera1_index=6, camera2_index=8):
-        # Initialize the two cameras
+    def __init__(self, camera1_index=6, camera2_index=8, brightness=-50):
+        self.camera1_device = f'/dev/video{camera1_index}'
+        self.camera2_device = f'/dev/video{camera2_index}'
+        
         self.camera1 = cv2.VideoCapture(camera1_index)
         self.camera2 = cv2.VideoCapture(camera2_index)
         
         if not self.camera1.isOpened() or not self.camera2.isOpened():
             print("Error: Unable to open one or both cameras")
             return
+        
+        # Setting the camera brightness using v4l2-ctl
+        self.set_camera_brightness(self.camera1_device, brightness)
+        self.set_camera_brightness(self.camera2_device, brightness)
+
+    def set_camera_brightness(self, device_path, brightness_value):
+        subprocess.run(['v4l2-ctl', '-d', device_path, '--set-ctrl', f'brightness={brightness_value}'], check=True)
 
     def capture_image(self):
         # Optionally clear the cache by grabbing a few frames

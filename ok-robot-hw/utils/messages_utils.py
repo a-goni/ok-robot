@@ -57,7 +57,7 @@ def add_system_message(messages):
         Map: [describe where you have been]
         Plan: [describe the plan to find the kitchen and avoid obstacles.]
         
-    Once you have a clear view of the kitchen, tell me that you have found it, and run the stop function/tool.
+    Once you have a clear view of the kitchen directly in front of you, tell me that you have found it, and run the stop function/tool.
     You must execute one of the function/tool calls provided to perform actions. Only provide one function/tool call per response."""
 
     new_message = [{
