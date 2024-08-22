@@ -1,6 +1,5 @@
 import os
 import signal
-from wide_camera import WideCamera
 from utils.asier_utils import signal_handler
 from utils.openai_utils import (
     capture_images,
@@ -11,6 +10,7 @@ from utils.messages_utils import add_system_message
 from openai import OpenAI
 from robot import HelloRobot
 from camera import RealSenseCamera
+from wide_camera import WideCamera
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 GPT_MODEL = "gpt-4o"

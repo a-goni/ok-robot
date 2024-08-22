@@ -78,7 +78,7 @@ def capture_images(camera, wide_camera, views, messages, display_seconds=3):
         elif view == 'Depth':
             _, depth_image, _ = camera.capture_image()
             depth_image = cv2.rotate(depth_image, cv2.ROTATE_90_CLOCKWISE)
-            depth_image = depth_image.astype(np.float32)
+            # depth_image = depth_image.astype(np.float32)
             captured_images.append(depth_image)
             depth_image = cv2.cvtColor(depth_image, cv2.COLOR_RGB2BGR)
             encoded_images.append(process_depth_image(depth_image))
